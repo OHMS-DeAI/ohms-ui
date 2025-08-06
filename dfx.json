@@ -1,0 +1,38 @@
+{
+  "canisters": {
+    "ohms_ui": {
+      "type": "assets",
+      "source": [
+        "dist"
+      ],
+      "frontend": {
+        "entrypoint": "index.html"
+      }
+    }
+  },
+  "defaults": {
+    "build": {
+      "packtool": "",
+      "args": ""
+    },
+    "canister_http": {
+      "enabled": false
+    },
+    "proguard": {
+      "enabled": false
+    },
+    "rust": {
+      "args": ""
+    }
+  },
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:8000",
+      "type": "ephemeral"
+    },
+    "ic": {
+      "type": "persistent"
+    }
+  },
+  "version": 1
+} 
