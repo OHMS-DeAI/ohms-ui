@@ -1,42 +1,60 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* OHMS Custom Styles */
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+  width: 8px;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+::-webkit-scrollbar-track {
+  background: rgba(11, 21, 55, 0.3);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(245, 197, 66, 0.6);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 197, 66, 0.8);
+}
+
+/* Glass morphism utility class */
+.glass-morph {
+  background: rgba(11, 21, 55, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(245, 197, 66, 0.2);
+}
+
+/* Glowing effect for interactive elements */
+.glow-on-hover:hover {
+  box-shadow: 0 0 20px rgba(245, 197, 66, 0.3);
+  transform: translateY(-2px);
+  transition: all 0.3s ease;
+}
+
+/* Animated gradient background */
+.gradient-bg {
+  background: linear-gradient(135deg, 
+    rgba(11, 21, 55, 0.9) 0%, 
+    rgba(15, 27, 70, 0.8) 50%, 
+    rgba(11, 21, 55, 0.9) 100%);
+}
+
+/* Pulse animation for loading states */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(245, 197, 66, 0.4);
   }
-  to {
-    transform: rotate(360deg);
+  50% {
+    box-shadow: 0 0 20px rgba(245, 197, 66, 0.8);
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+.pulse-glow {
+  animation: pulse-glow 2s infinite;
 }

@@ -12,9 +12,21 @@ export default defineConfig({
         manualChunks: undefined,
       },
     },
+    // Ensure compatibility with ICP
+    target: 'es2020',
+    sourcemap: false,
   },
   server: {
     port: 3000,
     host: true,
+  },
+  // Define environment variables for different networks
+  define: {
+    'process.env.DFX_NETWORK': JSON.stringify(process.env.DFX_NETWORK || 'local'),
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+  },
+  // Optimize for production builds
+  optimizeDeps: {
+    include: ['@dfinity/agent', '@dfinity/principal'],
   },
 })

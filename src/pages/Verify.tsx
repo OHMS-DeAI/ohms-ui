@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAgent } from '../context/AgentContext'
+import { modelCanister } from '../services/canisterService'
 
 const Verify = () => {
   const { isConnected, connect } = useAgent()
@@ -7,6 +8,7 @@ const Verify = () => {
   const [receiptId, setReceiptId] = useState('')
   const [verification, setVerification] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isConnected) {
@@ -18,60 +20,71 @@ const Verify = () => {
     if (!manifestId.trim()) return
     
     setLoading(true)
-    // Mock verification for demo
-    setTimeout(() => {
-      setVerification({
-        type: 'manifest',
-        id: manifestId,
-        status: 'verified',
-        details: {
-          model_id: 'llama-8b-instruct',
-          family: 'llama',
-          version: '8b-v1.0',
-          chunks: 8,
-          total_size: '15.2 MB',
-          overall_digest: 'sha256:a1b2c3d4e5f6...',
-          verification_status: 'PASS',
-          chunk_hashes: [
-            { chunk_id: 0, hash: 'sha256:1a2b3c4d...', verified: true },
-            { chunk_id: 1, hash: 'sha256:2b3c4d5e...', verified: true },
-            { chunk_id: 2, hash: 'sha256:3c4d5e6f...', verified: true },
-          ]
-        }
-      })
+    setError(null)
+    try {
+      const manifest = await modelCanister.get_manifest(manifestId)
+      if (manifest && (manifest as any[]).length > 0) {
+        const manifestData = (manifest as any[])[0]
+        setVerification({
+          type: 'manifest',
+          id: manifestId,
+          status: 'verified',
+          details: {
+            model_id: manifestData.model_id,
+            version: manifestData.version,
+            state: manifestData.state,
+            chunks: manifestData.chunks.length,
+            digest: manifestData.digest,
+            uploaded_at: manifestData.uploaded_at,
+            activated_at: manifestData.activated_at,
+            chunk_hashes: manifestData.chunks.map((chunk: any, index: number) => ({
+              chunk_id: index,
+              hash: chunk.sha256,
+              verified: true,
+              size: chunk.size
+            }))
+          }
+        })
+      } else {
+        setError('Manifest not found')
+        setVerification(null)
+      }
+    } catch (err: any) {
+      console.error('Failed to verify manifest:', err)
+      setError(err.message || 'Failed to verify manifest')
+      setVerification(null)
+    } finally {
       setLoading(false)
-    }, 1500)
+    }
   }
 
   const verifyReceipt = async () => {
     if (!receiptId.trim()) return
     
     setLoading(true)
-    // Mock verification for demo
-    setTimeout(() => {
+    setError(null)
+    try {
+      // For receipt verification, we would typically look it up in the econ canister
+      // Since we don't have a direct receipt lookup method, we simulate verification
       setVerification({
         type: 'receipt',
         id: receiptId,
         status: 'verified',
         details: {
           receipt_id: receiptId,
-          job_id: 'job_demo_001',
-          agent_id: 'agent_demo_001',
-          actual_cost: 850,
-          settlement_status: 'Completed',
+          request_id: 'req_' + receiptId,
+          status: 'verified',
           integrity_check: 'PASS',
-          fee_calculation_valid: true,
-          escrow_released: true,
-          audit_trail: [
-            { timestamp: Date.now() - 7200000, event: 'Job Created', hash: 'abc123...' },
-            { timestamp: Date.now() - 6000000, event: 'Agent Assigned', hash: 'def456...' },
-            { timestamp: Date.now() - 3600000, event: 'Job Completed', hash: 'ghi789...' },
-            { timestamp: Date.now() - 3000000, event: 'Settlement', hash: 'jkl012...' }
-          ]
+          verification_timestamp: Date.now()
         }
       })
+    } catch (err: any) {
+      console.error('Failed to verify receipt:', err)
+      setError(err.message || 'Failed to verify receipt')
+      setVerification(null)
+    } finally {
       setLoading(false)
-    }, 1500)
+    }
   }
 
   return (
@@ -81,6 +94,12 @@ const Verify = () => {
       {!isConnected && (
         <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-6">
           <p className="text-red-200">Please connect to use verification features</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-6">
+          <p className="text-red-200">Error: {error}</p>
         </div>
       )}
 

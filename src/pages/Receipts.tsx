@@ -1,57 +1,35 @@
 import { useState, useEffect } from 'react'
 import { useAgent } from '../context/AgentContext'
+import { econCanister, agent } from '../services/canisterService'
 
 const Receipts = () => {
   const { isConnected, connect } = useAgent()
   const [receipts, setReceipts] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isConnected) {
       connect()
+    } else {
+      fetchReceipts()
     }
   }, [isConnected, connect])
 
   const fetchReceipts = async () => {
     setLoading(true)
-    // Mock receipts for demo
-    setTimeout(() => {
-      setReceipts([
-        {
-          receipt_id: 'receipt_demo_001',
-          job_id: 'job_demo_001',
-          escrow_id: 'escrow_demo_001',
-          agent_id: 'agent_demo_001',
-          actual_cost: 850,
-          fees_breakdown: {
-            base_amount: 800,
-            protocol_fee: 25,
-            agent_fee: 25,
-            total_amount: 850,
-          },
-          settlement_status: 'Completed',
-          created_at: Date.now() - 3600000,
-          settled_at: Date.now() - 3000000,
-        },
-        {
-          receipt_id: 'receipt_demo_002',
-          job_id: 'job_demo_002',
-          escrow_id: 'escrow_demo_002',
-          agent_id: 'agent_demo_002',
-          actual_cost: 1200,
-          fees_breakdown: {
-            base_amount: 1100,
-            protocol_fee: 50,
-            agent_fee: 50,
-            total_amount: 1200,
-          },
-          settlement_status: 'Pending',
-          created_at: Date.now() - 1800000,
-          settled_at: null,
-        }
-      ])
+    setError(null)
+    try {
+      const principalId = (await agent.getPrincipal()).toString()
+      const result = await econCanister.list_receipts(principalId, 50)
+      setReceipts(Array.isArray(result) ? result : [])
+    } catch (err: any) {
+      console.error('Failed to fetch receipts:', err)
+      setError(err.message || 'Failed to fetch receipts')
+      setReceipts([])
+    } finally {
       setLoading(false)
-    }, 1000)
+    }
   }
 
   return (
@@ -73,6 +51,12 @@ const Receipts = () => {
         </div>
       )}
 
+      {error && (
+        <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-6">
+          <p className="text-red-200">Error: {error}</p>
+        </div>
+      )}
+
       <div className="space-y-4">
         {receipts.map((receipt) => (
           <div
@@ -84,44 +68,39 @@ const Receipts = () => {
                 <h3 className="text-accentGold font-semibold mb-3">Receipt Details</h3>
                 <div className="space-y-1 text-sm">
                   <p><span className="text-textOnDark">Receipt ID:</span> {receipt.receipt_id}</p>
-                  <p><span className="text-textOnDark">Job ID:</span> {receipt.job_id}</p>
-                  <p><span className="text-textOnDark">Agent ID:</span> {receipt.agent_id}</p>
-                  <p><span className="text-textOnDark">Escrow ID:</span> {receipt.escrow_id}</p>
+                  <p><span className="text-textOnDark">Request ID:</span> {receipt.request_id}</p>
+                  <p><span className="text-textOnDark">Amount:</span> {receipt.amount}</p>
                   <p>
                     <span className="text-textOnDark">Status:</span>{' '}
                     <span
                       className={
-                        receipt.settlement_status === 'Completed'
+                        receipt.status === 'settled'
                           ? 'text-green-400'
-                          : receipt.settlement_status === 'Pending'
+                          : receipt.status === 'pending'
                           ? 'text-yellow-400'
                           : 'text-red-400'
                       }
                     >
-                      {receipt.settlement_status}
+                      {receipt.status}
                     </span>
                   </p>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-accentGold font-semibold mb-3">Fee Breakdown</h3>
+                <h3 className="text-accentGold font-semibold mb-3">Payment Info</h3>
                 <div className="space-y-1 text-sm text-textOnDark/80">
                   <div className="flex justify-between">
-                    <span>Base Amount:</span>
-                    <span className="text-textOnDark">{receipt.fees_breakdown.base_amount}</span>
+                    <span>Amount:</span>
+                    <span className="text-textOnDark">{receipt.amount}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Protocol Fee:</span>
-                    <span className="text-textOnDark">{receipt.fees_breakdown.protocol_fee}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Agent Fee:</span>
-                    <span className="text-textOnDark">{receipt.fees_breakdown.agent_fee}</span>
+                    <span>Status:</span>
+                    <span className="text-textOnDark">{receipt.status}</span>
                   </div>
                   <div className="flex justify-between border-t border-accentGold/20 pt-1 mt-2">
                     <span className="text-accentGold font-medium">Total:</span>
-                    <span className="text-accentGold font-medium">{receipt.fees_breakdown.total_amount}</span>
+                    <span className="text-accentGold font-medium">{receipt.amount}</span>
                   </div>
                 </div>
               </div>
@@ -131,12 +110,12 @@ const Receipts = () => {
                 <div className="space-y-1 text-sm text-textOnDark/80">
                   <p>
                     <span className="text-textOnDark">Created:</span><br />
-                    {new Date(receipt.created_at).toLocaleString()}
+                    {new Date(Number(receipt.created_at) / 1000000).toLocaleString()}
                   </p>
-                  {receipt.settled_at && (
+                  {receipt.settled_at && receipt.settled_at.length > 0 && (
                     <p>
                       <span className="text-textOnDark">Settled:</span><br />
-                      {new Date(receipt.settled_at).toLocaleString()}
+                      {new Date(Number(receipt.settled_at[0]) / 1000000).toLocaleString()}
                     </p>
                   )}
                 </div>

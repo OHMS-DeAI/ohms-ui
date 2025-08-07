@@ -1,22 +1,40 @@
-import Particles from "react-tsparticles";
-import { loadFull } from "tsparticles";
-import { useCallback } from "react";
+import Particles, { initParticlesEngine } from "@tsparticles/react";
+import { loadSlim } from "@tsparticles/slim";
+import { useCallback, useEffect, useState } from "react";
 
 const ParticleBackground = () => {
-  const particlesInit = useCallback(async (engine: any) => {
-    await loadFull(engine);
+  const [init, setInit] = useState(false);
+
+  useEffect(() => {
+    initParticlesEngine(async (engine) => {
+      await loadSlim(engine);
+    }).then(() => {
+      setInit(true);
+    });
   }, []);
 
-  const particlesLoaded = useCallback(async (container: any) => {
+  const particlesLoaded = useCallback(async (container?: any) => {
     console.log('Particles loaded:', container);
   }, []);
+
+  if (!init) {
+    return null;
+  }
 
   return (
     <Particles
       id="tsparticles"
-      init={particlesInit}
-      loaded={particlesLoaded}
-      className="absolute inset-0 -z-10"
+      particlesLoaded={particlesLoaded}
+      className="particle-bg"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 0,
+        pointerEvents: 'none'
+      }}
       options={{
         background: {
           color: {
@@ -34,7 +52,9 @@ const ParticleBackground = () => {
               enable: true,
               mode: "repulse",
             },
-            resize: true,
+            resize: {
+              enable: true
+            },
           },
           modes: {
             push: {
@@ -52,10 +72,10 @@ const ParticleBackground = () => {
           },
           links: {
             color: "#F5C542",
-            distance: 150,
+            distance: 200,
             enable: true,
-            opacity: 0.2,
-            width: 1,
+            opacity: 0.8,
+            width: 2,
           },
           move: {
             direction: "none",
@@ -70,18 +90,19 @@ const ParticleBackground = () => {
           number: {
             density: {
               enable: true,
-              area: 800,
+              width: 1920,
+              height: 1080
             },
-            value: 50,
+            value: 100,
           },
           opacity: {
-            value: 0.5,
+            value: 0.9,
           },
           shape: {
             type: "circle",
           },
           size: {
-            value: { min: 1, max: 3 },
+            value: { min: 2, max: 4 },
           },
         },
         detectRetina: true,

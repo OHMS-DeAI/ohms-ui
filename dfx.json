@@ -7,7 +7,8 @@
       ],
       "frontend": {
         "entrypoint": "index.html"
-      }
+      },
+      "build": "pnpm run build"
     }
   },
   "defaults": {
@@ -17,17 +18,11 @@
     },
     "canister_http": {
       "enabled": false
-    },
-    "proguard": {
-      "enabled": false
-    },
-    "rust": {
-      "args": ""
     }
   },
   "networks": {
     "local": {
-      "bind": "127.0.0.1:8000",
+      "bind": "127.0.0.1:4943",
       "type": "ephemeral"
     },
     "ic": {
@@ -35,4 +30,4 @@
     }
   },
   "version": 1
-} 
+}
