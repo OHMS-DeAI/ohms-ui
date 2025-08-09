@@ -3,6 +3,8 @@
 @theme {
   --color-primary: #0B1537;
   --color-accent-gold: #F5C542;
+  --color-primary-80: rgba(11, 21, 55, 0.8);
+  --color-gold-20: rgba(245, 197, 66, 0.2);
   --color-text-on-dark: #E6E8F0;
 }
 
@@ -133,6 +135,7 @@ body {
   height: 100%;
   z-index: 0;
   pointer-events: none;
+  filter: blur(1px) opacity(0.9);
 }
 
 /* Ensure content appears above particles */

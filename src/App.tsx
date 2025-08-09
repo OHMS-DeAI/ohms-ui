@@ -2,6 +2,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import ParticleBackground from './components/ParticleBackground'
 import Header from './components/Header'
+import ProtectedRoute from './components/ProtectedRoute'
 import Agents from './pages/Agents'
 import Bounties from './pages/Bounties'
 import Receipts from './pages/Receipts'
@@ -13,6 +14,11 @@ import StarterPacks from './pages/StarterPacks'
 import Economics from './pages/Economics'
 import { AgentProvider } from './context/AgentContext'
 
+// Import admin test utility for development
+if (import.meta.env.DEV) {
+  import('./utils/adminTest')
+}
+
 function App() {
   return (
     <AgentProvider>
@@ -23,15 +29,52 @@ function App() {
             <Header />
             <main className="container mx-auto px-4 py-8">
               <Routes>
+                {/* Home page - always accessible */}
                 <Route path="/" element={<Home />} />
-                <Route path="/starter-packs" element={<StarterPacks />} />
-                <Route path="/wizard" element={<AIWizard />} />
-                <Route path="/models" element={<ModelCatalog />} />
-                <Route path="/agents" element={<Agents />} />
-                <Route path="/bounties" element={<Bounties />} />
-                <Route path="/economics" element={<Economics />} />
-                <Route path="/receipts" element={<Receipts />} />
-                <Route path="/verify" element={<Verify />} />
+                
+                {/* Protected routes - require authentication */}
+                <Route path="/starter-packs" element={
+                  <ProtectedRoute>
+                    <StarterPacks />
+                  </ProtectedRoute>
+                } />
+                <Route path="/wizard" element={
+                  <ProtectedRoute>
+                    <AIWizard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/models" element={
+                  <ProtectedRoute>
+                    <ModelCatalog />
+                  </ProtectedRoute>
+                } />
+                <Route path="/agents" element={
+                  <ProtectedRoute>
+                    <Agents />
+                  </ProtectedRoute>
+                } />
+                <Route path="/bounties" element={
+                  <ProtectedRoute>
+                    <Bounties />
+                  </ProtectedRoute>
+                } />
+                <Route path="/economics" element={
+                  <ProtectedRoute>
+                    <Economics />
+                  </ProtectedRoute>
+                } />
+                <Route path="/receipts" element={
+                  <ProtectedRoute>
+                    <Receipts />
+                  </ProtectedRoute>
+                } />
+                <Route path="/verify" element={
+                  <ProtectedRoute>
+                    <Verify />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Fallback redirect */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </main>
@@ -43,3 +86,4 @@ function App() {
 }
 
 export default App
+

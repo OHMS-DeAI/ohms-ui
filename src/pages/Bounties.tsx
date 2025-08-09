@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAgent } from '../context/AgentContext'
+import { listBounties, openBounty } from '../services/canisterService'
 
 import Card from '../components/Card'
 import Badge from '../components/Badge'
@@ -36,7 +37,7 @@ interface CreateBountyForm {
 }
 
 const Bounties = () => {
-  const { isConnected, connect } = useAgent()
+  const { isConnected, createPlugAgent } = useAgent()
   const [bounties, setBounties] = useState<Bounty[]>([])
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [selectedBounty, setSelectedBounty] = useState<Bounty | null>(null)
@@ -54,20 +55,45 @@ const Bounties = () => {
     deadline: ''
   })
 
+  // Remove automatic fetching - let users manually connect and fetch
+
+  // Auto-load bounties when connected
   useEffect(() => {
-    if (!isConnected) {
-      connect()
-    } else {
+    if (isConnected) {
       fetchBounties()
     }
-  }, [isConnected, connect])
+  }, [isConnected])
 
   const fetchBounties = async () => {
+    if (!isConnected) return
+    
     setLoading(true)
     setError(null)
     try {
-      // Fetch bounties from coordinator canister - will be empty until backend is connected
-      setBounties([])
+      const plugAgent = await createPlugAgent()
+      if (!plugAgent) {
+        throw new Error('Failed to create authenticated agent')
+      }
+      const res = await listBounties(plugAgent)
+      setBounties((res as any[]).map((b: any) => {
+        // Convert Candid variant to string
+        const statusString = typeof b.status === 'object' ? Object.keys(b.status)[0] : b.status
+        return {
+          bounty_id: b.bounty_id,
+          spec: {
+            title: b.spec.title,
+            description: b.spec.description,
+            required_capabilities: b.spec.required_capabilities,
+            max_participants: Number(b.spec.max_participants),
+            deadline_timestamp: Number(b.spec.deadline_timestamp),
+            escrow_amount: Number(b.spec.escrow_amount),
+          },
+          status: statusString as 'Open' | 'InProgress' | 'Completed' | 'Disputed',
+          created_at: Number(b.created_at ?? 0),
+          submissions: b.submissions || [],
+          creator: b.creator,
+        }
+      }))
     } catch (err: any) {
       console.error('Failed to fetch bounties:', err)
       setError(err.message || 'Failed to fetch bounties')
@@ -81,24 +107,16 @@ const Bounties = () => {
     setSubmitting(true)
     
     try {
-      // In real implementation, would call coordinator.create_bounty
-      const newBounty: Bounty = {
-        bounty_id: `bounty_${Date.now()}`,
-        spec: {
-          title: createForm.title,
-          description: createForm.description,
-          required_capabilities: createForm.capabilities.split(',').map(c => c.trim()),
-          max_participants: createForm.maxParticipants,
-          deadline_timestamp: new Date(createForm.deadline).getTime(),
-          escrow_amount: createForm.escrowAmount
-        },
-        status: 'Open',
-        created_at: Date.now(),
-        submissions: [],
-        creator: 'current.user'
+      const spec = {
+        title: createForm.title,
+        description: createForm.description,
+        required_capabilities: createForm.capabilities.split(',').map(c => c.trim()),
+        max_participants: createForm.maxParticipants,
+        deadline_timestamp: BigInt(new Date(createForm.deadline).getTime()),
+        escrow_amount: BigInt(createForm.escrowAmount),
       }
-      
-      setBounties(prev => [newBounty, ...prev])
+      await openBounty(spec as any, `escrow_${Date.now()}`)
+      await fetchBounties()
       setShowCreateForm(false)
       setCreateForm({
         title: '',
@@ -150,23 +168,15 @@ const Bounties = () => {
           <p className="text-textOnDark/70">Create and participate in AI-powered task bounties</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={fetchBounties} loading={loading} disabled={!isConnected}>
+          <Button variant="outline" onClick={fetchBounties} loading={loading}>
             Refresh
           </Button>
-          <Button onClick={() => setShowCreateForm(true)} disabled={!isConnected}>
+          <Button onClick={() => setShowCreateForm(true)}>
             Create Bounty
           </Button>
         </div>
       </div>
 
-      {!isConnected && (
-        <Card className="mb-6 border-red-500/50">
-          <div className="text-center">
-            <p className="text-red-300 mb-4">Please connect to view bounties</p>
-            <Button onClick={connect}>Connect</Button>
-          </div>
-        </Card>
-      )}
 
       {error && (
         <Card className="mb-6 border-red-500/50">

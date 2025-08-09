@@ -1,11 +1,15 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useState } from 'react'
+import { useAgent } from '../context/AgentContext'
+import Button from './Button'
 
 const Header = () => {
   const location = useLocation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
-  const navigation = [
+  const { isPlugAvailable, isConnected, isConnecting, userProfile, connect, disconnect } = useAgent()
+
+  const baseNav = [
     { name: 'Home', href: '/', current: location.pathname === '/' },
     { name: 'Starter Packs', href: '/starter-packs', current: location.pathname === '/starter-packs' },
     { name: 'AI Wizard', href: '/wizard', current: location.pathname === '/wizard' },
@@ -15,6 +19,9 @@ const Header = () => {
     { name: 'Economics', href: '/economics', current: location.pathname === '/economics' },
     { name: 'Verify', href: '/verify', current: location.pathname === '/verify' },
   ]
+  // Always show admin link - authentication handled in Admin component
+  const adminNav = [{ name: 'Admin', href: '/admin', current: location.pathname === '/admin' }]
+  const navigation = [...baseNav, ...adminNav]
 
   return (
     <header className="glass-morph sticky top-0 z-50 shadow-lg">
@@ -54,6 +61,42 @@ const Header = () => {
             ))}
           </nav>
 
+          {/* Wallet / Identity */}
+          <div className="hidden md:flex items-center gap-3">
+            {!isPlugAvailable ? (
+              <div className="text-xs text-red-300 px-3 py-1.5 rounded-lg border border-red-500/30">
+                Install Plug
+              </div>
+            ) : isConnected && userProfile ? (
+              <div className="flex items-center gap-2">
+                <div className="text-xs text-textOnDark/80 px-3 py-1.5 rounded-lg border border-accentGold/30 bg-accentGold/10">
+                  👤 {userProfile.name}
+                </div>
+                <Button variant="outline" size="sm" onClick={disconnect}>
+                  Disconnect
+                </Button>
+              </div>
+            ) : (
+              <Button 
+                size="sm" 
+                onClick={connect} 
+                disabled={isConnecting}
+                className="flex items-center gap-2"
+              >
+                {isConnecting ? (
+                  <>
+                    <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  <>
+                    🔗 Connect Wallet
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+
           {/* Mobile menu button */}
           <div className="md:hidden">
             <button
@@ -90,6 +133,36 @@ const Header = () => {
                   {item.name}
                 </Link>
               ))}
+              <div className="flex gap-2 px-4">
+                {!isPlugAvailable ? (
+                  <div className="text-xs text-red-300 px-3 py-2 rounded-lg border border-red-500/30 w-full text-center">
+                    Install Plug Wallet
+                  </div>
+                ) : isConnected && userProfile ? (
+                  <div className="flex flex-col gap-2">
+                    <div className="text-xs text-textOnDark/80 px-3 py-2 rounded-lg border border-accentGold/30 bg-accentGold/10 w-full text-center">
+                      👤 {userProfile.name}
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      fullWidth 
+                      onClick={() => { disconnect(); setIsMobileMenuOpen(false) }}
+                    >
+                      Disconnect
+                    </Button>
+                  </div>
+                ) : (
+                  <Button 
+                    size="sm" 
+                    fullWidth 
+                    onClick={() => { connect(); setIsMobileMenuOpen(false) }}
+                    disabled={isConnecting}
+                  >
+                    {isConnecting ? 'Connecting...' : '🔗 Connect Wallet'}
+                  </Button>
+                )}
+              </div>
             </nav>
           </div>
         )}

@@ -23,7 +23,7 @@ interface TaskRequest {
 }
 
 const AIWizard = () => {
-  const { isConnected, connect } = useAgent()
+  const { isPlugAvailable } = useAgent()
   const [currentStep, setCurrentStep] = useState(0)
   const [taskRequest, setTaskRequest] = useState<TaskRequest>({
     goal: '',
@@ -223,13 +223,12 @@ This ${request.outputFormat} addresses your specific needs while maintaining a $
     setIsProcessing(false)
   }
 
-  if (!isConnected) {
+  if (!isPlugAvailable) {
     return (
       <div className="max-w-4xl mx-auto">
         <Card className="text-center py-12">
           <h1 className="text-3xl font-bold text-accentGold mb-4">AI Task Wizard</h1>
-          <p className="text-textOnDark/70 mb-6">Connect to start creating AI-powered tasks</p>
-          <Button onClick={connect}>Connect to OHMS</Button>
+          <p className="text-textOnDark/70 mb-6">Install Plug wallet to start creating AI-powered tasks</p>
         </Card>
       </div>
     )

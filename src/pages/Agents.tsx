@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useAgent } from '../context/AgentContext'
-import { modelCanister } from '../services/canisterService'
 import Card from '../components/Card'
 import Badge from '../components/Badge'
 import Button from '../components/Button'
@@ -8,6 +7,8 @@ import Modal from '../components/Modal'
 import Input from '../components/Input'
 
 import LoadingSpinner from '../components/LoadingSpinner'
+import { AgentAdminMetrics, SystemHealthBanner } from '../components/AdminMetrics'
+import { setSwarmPolicy, getSwarmPolicy, routeBestResult, listAgents } from '../services/canisterService'
 
 interface Agent {
   agent_id: string
@@ -37,8 +38,12 @@ interface ChatMessage {
 }
 
 const Agents = () => {
-  const { isConnected, connect } = useAgent()
+  const { isConnected, createPlugAgent } = useAgent()
   const [agents, setAgents] = useState<Agent[]>([])
+  const [swarmTopK, setSwarmTopK] = useState(3)
+  const [swarmWindowMs, setSwarmWindowMs] = useState(100)
+  const [swarmMode, setSwarmMode] = useState<'Parallel'|'Sequential'|'Adaptive'>('Parallel')
+  const [swarmTopology, setSwarmTopology] = useState<'Mesh'|'Hierarchical'|'Ring'|'Star'>('Mesh')
 
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
   const [loading, setLoading] = useState(false)
@@ -62,21 +67,49 @@ const Agents = () => {
   
 
 
+  // Remove automatic fetching - let users manually connect and fetch
+
   useEffect(() => {
-    if (!isConnected) {
-      connect()
-    } else {
-      fetchAgents()
-      fetchModels()
-    }
-  }, [isConnected, connect])
+    (async () => {
+      try {
+        const policy = await getSwarmPolicy()
+        if (policy) {
+          // @ts-ignore
+          setSwarmTopK(Number(policy.top_k ?? 3))
+          // @ts-ignore
+          setSwarmWindowMs(Number(policy.window_ms ?? 100))
+          // @ts-ignore
+          setSwarmMode(Object.keys(policy.mode || { Parallel: null })[0] as any)
+          // @ts-ignore
+          setSwarmTopology(Object.keys(policy.topology || { Mesh: null })[0] as any)
+        }
+      } catch {
+        // ignore
+      }
+    })()
+  }, [])
 
   const fetchAgents = async () => {
+    if (!isConnected) return
+    
     setLoading(true)
     setError(null)
     try {
-      // Fetch agents from coordinator canister - will be empty until backend is connected
-      setAgents([])
+      const plugAgent = await createPlugAgent()
+      if (!plugAgent) {
+        throw new Error('Failed to create authenticated agent')
+      }
+      const res = await listAgents(plugAgent)
+      setAgents((res as any[]).map((a: any) => ({
+        agent_id: a.agent_id,
+        agent_principal: a.agent_principal,
+        capabilities: a.capabilities,
+        reputation: 0,
+        last_heartbeat: Number(a.last_seen ?? 0),
+        health_score: Number(a.health_score ?? 0),
+        model_id: a.model_id,
+        status: 'online',
+      })))
     } catch (err: any) {
       console.error('Failed to fetch agents:', err)
       setError(err.message || 'Failed to fetch agents')
@@ -85,42 +118,41 @@ const Agents = () => {
       setLoading(false)
     }
   }
-
-  const fetchModels = async () => {
-    try {
-      await modelCanister.list_models([])
-    } catch (err) {
-      console.error('Failed to fetch models:', err)
+  
+  // Auto-load agents when connected
+  useEffect(() => {
+    if (isConnected) {
+      fetchAgents()
     }
-  }
+  }, [isConnected])
+
+  // Remove fetchModels - not needed in this component
 
   const handleCreateAgent = async () => {
-    try {
-      // In real implementation, would call agent creation API
-      const newAgent: Agent = {
-        agent_id: `agent_${Date.now()}`,
-        agent_principal: 'new-agent-principal',
-        capabilities: agentConfig.capabilities,
-        reputation: 0,
-        last_heartbeat: Date.now(),
-        health_score: 1.0,
-        model_id: agentConfig.model_id,
-        status: 'online'
-      }
-      
-      setAgents(prev => [...prev, newAgent])
-      setShowCreateForm(false)
-      setAgentConfig({
-        model_id: '',
-        max_tokens: 1000,
-        temperature: 0.7,
-        top_p: 0.9,
-        retention_days: 30,
-        capabilities: []
-      })
-    } catch (err: any) {
-      setError(err.message || 'Failed to create agent')
+    // No client-side mock creation. Surface message for now.
+    setError('Agent creation is managed by the coordinator/ops flow.')
+    setShowCreateForm(false)
+  }
+
+  const handleSaveSwarmPolicy = async () => {
+    const policy = {
+      topology: { [swarmTopology]: null } as any,
+      mode: { [swarmMode]: null } as any,
+      top_k: swarmTopK,
+      window_ms: BigInt(swarmWindowMs),
     }
+    await setSwarmPolicy(policy)
+  }
+
+  const handleBestResultRoute = async () => {
+    const req = {
+      request_id: `req_${Date.now()}`,
+      requester: 'ui',
+      capabilities_required: ['qna'],
+      payload: new Uint8Array(),
+      routing_mode: { Broadcast: null } as any,
+    }
+    await routeBestResult(req, swarmTopK, BigInt(swarmWindowMs))
   }
 
   const handleSendMessage = async () => {
@@ -140,17 +172,8 @@ const Agents = () => {
     setCurrentMessage('')
     
     try {
-      // Simulate agent response
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      const assistantMessage: ChatMessage = {
-        id: `msg_${Date.now() + 1}`,
-        role: 'assistant',
-        content: generateMockResponse(currentMessage, selectedAgent),
-        timestamp: Date.now()
-      }
-      
-      setChatMessages(prev => [...prev, assistantMessage])
+      // Real inference will go via agent canister once bound.
+      setError('Inference route not wired yet. Bind agent and use coordinator route in next step.')
     } catch (err) {
       console.error('Failed to send message:', err)
     } finally {
@@ -158,16 +181,7 @@ const Agents = () => {
     }
   }
 
-  const generateMockResponse = (prompt: string, agent: Agent) => {
-    const responses = {
-      'text-generation': `Based on your request: "${prompt}"\n\nI can help you with text generation tasks. As an AI agent specialized in ${agent.capabilities.join(', ')}, I'm ready to assist with creative writing, content creation, and analytical tasks.\n\nWhat specific type of content would you like me to generate?`,
-      'code-analysis': `I'll analyze your code request: "${prompt}"\n\n\`\`\`python\n# Here's a sample analysis approach:\ndef analyze_code(code_snippet):\n    issues = []\n    suggestions = []\n    \n    # Check for common patterns\n    if 'TODO' in code_snippet:\n        issues.append('Unfinished implementation')\n    \n    return {\n        'issues': issues,\n        'suggestions': suggestions,\n        'score': 85\n    }\n\`\`\`\n\nThis agent specializes in code review and can help with debugging, optimization, and best practices.`,
-      'data-analysis': `Data analysis for: "${prompt}"\n\n**Analysis Summary:**\n- Data points processed: 1,247\n- Key insights identified: 5\n- Recommendations: 3\n\n**Key Findings:**\n1. 23% increase in user engagement\n2. Peak activity occurs at 2-4 PM\n3. Mobile users show 67% higher conversion\n\n**Recommendations:**\n1. Focus marketing efforts during peak hours\n2. Optimize mobile experience further\n3. Implement A/B testing for engagement features\n\nWould you like me to dive deeper into any specific aspect?`
-    }
-    
-    const primaryCapability = agent.capabilities[0] as keyof typeof responses
-    return responses[primaryCapability] || `I understand your request: "${prompt}"\n\nAs an AI agent with capabilities in ${agent.capabilities.join(', ')}, I'm here to help. Could you provide more specific details about what you'd like me to assist with?`
-  }
+  // Removed mock response generator
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -187,29 +201,22 @@ const Agents = () => {
 
   return (
     <div className="max-w-7xl mx-auto">
+      <SystemHealthBanner />
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-4xl font-bold text-accentGold mb-2">Agent Console</h1>
           <p className="text-textOnDark/70">Manage, configure, and interact with AI agents</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={fetchAgents} loading={loading} disabled={!isConnected}>
+          <Button variant="outline" onClick={fetchAgents} loading={loading}>
             Refresh
           </Button>
-          <Button onClick={() => setShowCreateForm(true)} disabled={!isConnected}>
+          <Button onClick={() => setShowCreateForm(true)}>
             Create Agent
           </Button>
         </div>
       </div>
 
-      {!isConnected && (
-        <Card className="mb-6 border-red-500/50">
-          <div className="text-center">
-            <p className="text-red-300 mb-4">Please connect to view agents</p>
-            <Button onClick={connect}>Connect</Button>
-          </div>
-        </Card>
-      )}
 
       {error && (
         <Card className="mb-6 border-red-500/50">
@@ -217,21 +224,54 @@ const Agents = () => {
         </Card>
       )}
 
+      {/* Swarm Policy Panel */}
+      <div className="rounded-lg border border-accentGold/30 p-4 mb-6">
+        <h3 className="text-lg font-semibold mb-3 text-accentGold">Swarm Policy</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div>
+            <label className="text-sm text-textOnDark/70">Topology</label>
+            <select value={swarmTopology} onChange={e=>setSwarmTopology(e.target.value as any)} className="w-full bg-primary/60 border border-accentGold/40 rounded px-2 py-1">
+              {['Mesh','Hierarchical','Ring','Star'].map(t=> <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm text-textOnDark/70">Mode</label>
+            <select value={swarmMode} onChange={e=>setSwarmMode(e.target.value as any)} className="w-full bg-primary/60 border border-accentGold/40 rounded px-2 py-1">
+              {['Parallel','Sequential','Adaptive'].map(t=> <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm text-textOnDark/70">Top K</label>
+            <input type="number" min={1} value={swarmTopK} onChange={e=>setSwarmTopK(Number(e.target.value))} className="w-full bg-primary/60 border border-accentGold/40 rounded px-2 py-1" />
+          </div>
+          <div>
+            <label className="text-sm text-textOnDark/70">Window (ms)</label>
+            <input type="number" min={1} value={swarmWindowMs} onChange={e=>setSwarmWindowMs(Number(e.target.value))} className="w-full bg-primary/60 border border-accentGold/40 rounded px-2 py-1" />
+          </div>
+        </div>
+        <div className="mt-3 flex gap-3">
+          <Button onClick={handleSaveSwarmPolicy}>Save Policy</Button>
+          <Button variant="outline" onClick={handleBestResultRoute}>Route Best Result</Button>
+        </div>
+      </div>
+
+      <AgentAdminMetrics />
+
       {/* Agents Grid */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <LoadingSpinner size="lg" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {agents.map((agent) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {agents.map((agent) => (
             <Card key={agent.agent_id} hover className="h-full">
               <div className="flex flex-col h-full">
-                <div className="flex justify-between items-start mb-4">
+            <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-accentGold mb-1">
-                      {agent.agent_id}
-                    </h3>
+                {agent.agent_id}
+              </h3>
                     <p className="text-sm text-textOnDark/60">
                       {agent.model_id || 'No model bound'}
                     </p>
@@ -244,8 +284,8 @@ const Agents = () => {
                       {(agent.health_score * 100).toFixed(0)}%
                     </Badge>
                   </div>
-                </div>
-
+            </div>
+            
                 <div className="space-y-3 flex-grow">
                   <div>
                     <span className="text-sm text-textOnDark/60">Capabilities:</span>
@@ -265,7 +305,7 @@ const Agents = () => {
                         ⭐ {agent.reputation.toFixed(1)}/5
                       </p>
                     </div>
-                    <div>
+              <div>
                       <span className="text-textOnDark/60">Last Active:</span>
                       <p className="text-textOnDark font-medium">
                         {Math.round((Date.now() - agent.last_heartbeat) / 60000)}m ago
@@ -497,9 +537,9 @@ const Agents = () => {
                   {((selectedAgent?.health_score || 0) * 100).toFixed(1)}%
                 </p>
               </div>
-            </div>
-          </div>
-
+                </div>
+              </div>
+              
           <div>
             <h4 className="text-textOnDark font-medium mb-3">Model Binding</h4>
             <div className="p-3 bg-primary/40 rounded border border-accentGold/20">
@@ -508,7 +548,7 @@ const Agents = () => {
                 {selectedAgent?.model_id || 'No model bound'}
               </p>
             </div>
-          </div>
+            </div>
 
           <div>
             <h4 className="text-textOnDark font-medium mb-3">Capabilities</h4>
@@ -527,7 +567,7 @@ const Agents = () => {
               Save Configuration
             </Button>
           </div>
-        </div>
+      </div>
       </Modal>
     </div>
   )

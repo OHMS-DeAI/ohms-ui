@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useAgent } from '../context/AgentContext'
-import { modelCanister } from '../services/canisterService'
+import { listModels } from '../services/canisterService'
 import Card from '../components/Card'
 import Badge from '../components/Badge'
 import Button from '../components/Button'
 import Input from '../components/Input'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { ModelAdminMetrics, SystemHealthBanner } from '../components/AdminMetrics'
 
 interface Model {
   model_id: string
@@ -30,7 +31,7 @@ interface Model {
 }
 
 const ModelCatalog = () => {
-  const { isConnected, connect } = useAgent()
+  const { isPlugAvailable, createPlugAgent } = useAgent()
   const [models, setModels] = useState<Model[]>([])
   const [filteredModels, setFilteredModels] = useState<Model[]>([])
   const [loading, setLoading] = useState(false)
@@ -39,13 +40,7 @@ const ModelCatalog = () => {
   const [selectedState, setSelectedState] = useState<string>('all')
   const [selectedBadge, setSelectedBadge] = useState<string>('all')
 
-  useEffect(() => {
-    if (!isConnected) {
-      connect()
-    } else {
-      fetchModels()
-    }
-  }, [isConnected, connect])
+  // Remove automatic fetching - let users manually connect and fetch
 
   useEffect(() => {
     filterModels()
@@ -55,87 +50,38 @@ const ModelCatalog = () => {
     setLoading(true)
     setError(null)
     try {
-      const result = await modelCanister.list_models([])
+      // Create authenticated agent when needed
+      const plugAgent = await createPlugAgent()
+      if (!plugAgent) {
+        throw new Error('Authentication required. Please connect with Plug wallet.')
+      }
       
-      // Transform and enrich model data
-      const enrichedModels = (result as any[]).map((model: any) => ({
-        ...model,
-        // Add mock data for demonstration
-        family: getModelFamily(model.model_id),
-        description: getModelDescription(model.model_id),
-        size_mb: calculateSizeMB(model.chunks),
-        badges: getModelBadges(model.state, model.model_id),
-        parameters: getModelParameters(model.model_id),
-        license: getModelLicense(model.model_id)
-      }))
-      
-      setModels(enrichedModels)
-    } catch (err: any) {
-      console.error('Failed to fetch models:', err)
-      setError(err.message || 'Failed to fetch models')
-      // Mock data for demonstration
-      setModels([
-        {
-          model_id: 'llama-3-8b-instruct',
-          version: '1.0.0',
-          state: 'Active',
-          digest: 'sha256:abc123...',
-          chunks: Array.from({ length: 12 }, (_, i) => ({
-            id: `chunk_${i}`,
-            sha256: `sha256:chunk${i}...`,
-            size: 2097152,
-            offset: i * 2097152
-          })),
-          uploaded_at: Date.now() - 7 * 24 * 60 * 60 * 1000,
-          activated_at: Date.now() - 6 * 24 * 60 * 60 * 1000,
-          family: 'Llama',
-          description: 'Meta\'s Llama 3 8B instruction-tuned model optimized for chat and instruction following',
-          size_mb: 24,
-          badges: ['Verified Quant', 'Reproducible', 'License Clear'],
-          parameters: '8B',
-          license: 'Custom'
-        },
-        {
-          model_id: 'phi-3-mini-128k',
-          version: '1.0.0',
-          state: 'Active',
-          digest: 'sha256:def456...',
-          chunks: Array.from({ length: 8 }, (_, i) => ({
-            id: `chunk_${i}`,
-            sha256: `sha256:chunk${i}...`,
-            size: 2097152,
-            offset: i * 2097152
-          })),
-          uploaded_at: Date.now() - 5 * 24 * 60 * 60 * 1000,
-          activated_at: Date.now() - 4 * 24 * 60 * 60 * 1000,
-          family: 'Phi',
-          description: 'Microsoft\'s Phi-3 Mini with 128K context length, excellent for reasoning tasks',
-          size_mb: 16,
-          badges: ['Verified Quant', 'Reproducible'],
-          parameters: '3.8B',
-          license: 'MIT'
-        },
-        {
-          model_id: 'mistral-7b-instruct',
-          version: '0.3',
-          state: 'Pending',
-          digest: 'sha256:ghi789...',
-          chunks: Array.from({ length: 10 }, (_, i) => ({
-            id: `chunk_${i}`,
-            sha256: `sha256:chunk${i}...`,
-            size: 2097152,
-            offset: i * 2097152
-          })),
-          uploaded_at: Date.now() - 2 * 24 * 60 * 60 * 1000,
-          family: 'Mistral',
-          description: 'Mistral AI\'s 7B instruction model with strong performance across various tasks',
-          size_mb: 20,
-          badges: ['Pending Verification'],
-          parameters: '7B',
-          license: 'Apache 2.0'
+      const list = await listModels(undefined, plugAgent)
+      // Skip metadata fetching for now since get_model_meta doesn't exist in actual interface
+      const metas = list.map(() => null)
+
+      const enrichedModels = list.map((model: any, idx: number) => {
+        const meta = metas[idx] as any // Type as any since we're setting it to null
+        // Convert Candid variant to string
+        const stateString = typeof model.state === 'object' ? Object.keys(model.state)[0] : model.state
+        return {
+          ...model,
+          state: stateString, // Ensure state is a string
+          family: meta?.family ?? getModelFamily(model.model_id),
+          description: getModelDescription(model.model_id),
+          size_mb: calculateSizeMB(model.chunks),
+          badges: getModelBadges(stateString, model.model_id),
+          parameters: getModelParameters(model.model_id),
+          license: meta?.license ?? getModelLicense(model.model_id)
         }
-      ])
-    } finally {
+      })
+
+      setModels(enrichedModels)
+      } catch (err: any) {
+        console.error('Failed to fetch models:', err)
+        setError(err.message || 'Failed to fetch models')
+        setModels([])
+      } finally {
       setLoading(false)
     }
   }
@@ -183,7 +129,7 @@ const ModelCatalog = () => {
     return 'default'
   }
 
-  // Helper functions for mock data
+  // Helper functions for enrichment
   const getModelFamily = (modelId: string) => {
     if (modelId.includes('llama')) return 'Llama'
     if (modelId.includes('phi')) return 'Phi'
@@ -203,7 +149,11 @@ const ModelCatalog = () => {
   }
 
   const calculateSizeMB = (chunks: any[]) => {
-    const totalBytes = chunks.reduce((sum, chunk) => sum + chunk.size, 0)
+    const totalBytes = chunks.reduce((sum, chunk) => {
+      // Convert BigInt to number for calculation
+      const chunkSize = typeof chunk.size === 'bigint' ? Number(chunk.size) : chunk.size
+      return sum + chunkSize
+    }, 0)
     return Math.round(totalBytes / (1024 * 1024))
   }
 
@@ -236,21 +186,21 @@ const ModelCatalog = () => {
 
   return (
     <div className="max-w-7xl mx-auto">
+      <SystemHealthBanner />
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-4xl font-bold text-accentGold mb-2">Model Catalog</h1>
           <p className="text-textOnDark/70">Discover and verify quantized AI models on OHMS</p>
         </div>
-        <Button onClick={fetchModels} loading={loading} disabled={!isConnected}>
+        <Button onClick={fetchModels} loading={loading} disabled={!isPlugAvailable}>
           Refresh Models
         </Button>
       </div>
 
-      {!isConnected && (
+      {!isPlugAvailable && (
         <Card className="mb-6">
           <div className="text-center">
-            <p className="text-red-300 mb-4">Please connect to view the model catalog</p>
-            <Button onClick={connect}>Connect</Button>
+            <p className="text-red-300 mb-4">Plug wallet not found. Please install Plug wallet extension.</p>
           </div>
         </Card>
       )}
@@ -299,6 +249,8 @@ const ModelCatalog = () => {
           </div>
         </div>
       </Card>
+
+      <ModelAdminMetrics />
 
       {/* Model Grid */}
       {loading ? (
@@ -378,7 +330,7 @@ const ModelCatalog = () => {
         </div>
       )}
 
-      {filteredModels.length === 0 && !loading && isConnected && (
+      {filteredModels.length === 0 && !loading && isPlugAvailable && (
         <Card className="text-center py-12">
           <p className="text-textOnDark/60 mb-4">No models found matching your criteria</p>
           <Button variant="ghost" onClick={() => {

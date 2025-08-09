@@ -1,20 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAgent } from '../context/AgentContext'
 import { modelCanister } from '../services/canisterService'
 
 const Verify = () => {
-  const { isConnected, connect } = useAgent()
+  const { isPlugAvailable } = useAgent()
   const [manifestId, setManifestId] = useState('')
   const [receiptId, setReceiptId] = useState('')
   const [verification, setVerification] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!isConnected) {
-      connect()
-    }
-  }, [isConnected, connect])
+  // Remove automatic connection - manual auth system
 
   const verifyManifest = async () => {
     if (!manifestId.trim()) return
@@ -22,9 +18,9 @@ const Verify = () => {
     setLoading(true)
     setError(null)
     try {
-      const manifest = await modelCanister.get_manifest(manifestId)
-      if (manifest && (manifest as any[]).length > 0) {
-        const manifestData = (manifest as any[])[0]
+      const manifestOpt = await modelCanister.get_manifest(manifestId)
+      if (Array.isArray(manifestOpt) && manifestOpt.length > 0) {
+        const manifestData = manifestOpt[0] as any
         setVerification({
           type: 'manifest',
           id: manifestId,
@@ -91,7 +87,7 @@ const Verify = () => {
     <div className="max-w-4xl mx-auto">
       <h1 className="text-4xl font-bold text-accentGold mb-8">Verify</h1>
 
-      {!isConnected && (
+      {!isPlugAvailable && (
         <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-6">
           <p className="text-red-200">Please connect to use verification features</p>
         </div>
@@ -117,12 +113,12 @@ const Verify = () => {
               onChange={(e) => setManifestId(e.target.value)}
               placeholder="Enter manifest ID or model ID"
               className="w-full p-3 bg-primary/60 border border-accentGold/40 rounded text-textOnDark"
-              disabled={!isConnected}
+              disabled={!isPlugAvailable}
             />
             
             <button
               onClick={verifyManifest}
-              disabled={!isConnected || loading || !manifestId.trim()}
+              disabled={!isPlugAvailable || loading || !manifestId.trim()}
               className="w-full px-4 py-3 bg-accentGold text-primary rounded disabled:opacity-50"
             >
               {loading ? 'Verifying...' : 'Verify Manifest'}
@@ -143,12 +139,12 @@ const Verify = () => {
               onChange={(e) => setReceiptId(e.target.value)}
               placeholder="Enter receipt ID"
               className="w-full p-3 bg-primary/60 border border-accentGold/40 rounded text-textOnDark"
-              disabled={!isConnected}
+              disabled={!isPlugAvailable}
             />
             
             <button
               onClick={verifyReceipt}
-              disabled={!isConnected || loading || !receiptId.trim()}
+              disabled={!isPlugAvailable || loading || !receiptId.trim()}
               className="w-full px-4 py-3 bg-accentGold text-primary rounded disabled:opacity-50"
             >
               {loading ? 'Verifying...' : 'Verify Receipt'}

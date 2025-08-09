@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAgent } from '../context/AgentContext'
+import { econCanister, agent } from '../services/canisterService'
 
 import Card from '../components/Card'
 import Badge from '../components/Badge'
@@ -7,6 +8,7 @@ import Button from '../components/Button'
 import Modal from '../components/Modal'
 import Input from '../components/Input'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { EconomicsAdminMetrics, SystemHealthBanner } from '../components/AdminMetrics'
 
 interface Receipt {
   receipt_id: string
@@ -46,14 +48,55 @@ interface Statement {
 }
 
 const Economics = () => {
-  const { isConnected, connect } = useAgent()
+  const { isPlugAvailable } = useAgent()
   const [activeTab, setActiveTab] = useState<'overview' | 'receipts' | 'estimates' | 'billing'>('overview')
   const [receipts, setReceipts] = useState<Receipt[]>([])
-  const [statements, setStatements] = useState<Statement[]>([])
+  const [statements] = useState<Statement[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showEstimateModal, setShowEstimateModal] = useState(false)
   const [showBillingModal, setShowBillingModal] = useState(false)
+  const [subscribeLoading, setSubscribeLoading] = useState(false)
+  const [subscribeMsg, setSubscribeMsg] = useState<string | null>(null)
+  const [subscribeErr, setSubscribeErr] = useState<string | null>(null)
+
+  const tiers = [
+    {
+      id: 'free',
+      name: 'Free',
+      priceIcp: 0,
+      features: ['50k tokens/mo', '100 inferences', '1 concurrency'],
+      cta: 'Current',
+    },
+    {
+      id: 'starter',
+      name: 'Starter',
+      priceIcp: 1,
+      features: ['1M tokens/mo', '2k inferences', '2 concurrency'],
+      cta: 'Subscribe',
+    },
+    {
+      id: 'pro',
+      name: 'Pro',
+      priceIcp: 5,
+      features: ['6M tokens/mo', '10k inferences', '4 concurrency'],
+      cta: 'Subscribe',
+    },
+    {
+      id: 'team',
+      name: 'Team',
+      priceIcp: 25,
+      features: ['30M tokens/mo', '60k inferences', '10 concurrency'],
+      cta: 'Subscribe',
+    },
+    {
+      id: 'enterprise',
+      name: 'Enterprise',
+      priceIcp: null as number | null,
+      features: ['SLA', 'Priority routing', 'Dedicated agents'],
+      cta: 'Contact',
+    },
+  ]
   
   // Estimate form
   const [estimateForm, setEstimateForm] = useState({
@@ -65,103 +108,94 @@ const Economics = () => {
   const [currentEstimate, setCurrentEstimate] = useState<Estimate | null>(null)
 
   // Balance and stats
-  const [balance, setBalance] = useState(0)
+  const [balance] = useState(0)
   const [pendingAmount, setPendingAmount] = useState(0)
   const [monthlySpent, setMonthlySpent] = useState(0)
 
-  useEffect(() => {
-    if (!isConnected) {
-      connect()
-    } else {
-      fetchData()
-    }
-  }, [isConnected, connect])
+  // Remove automatic connection and fetching - manual auth system
 
-  const fetchData = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      await Promise.all([
-        fetchReceipts(),
-        fetchStatements(),
-        fetchBalance()
-      ])
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch data')
-    } finally {
-      setLoading(false)
-    }
-  }
+  // Remove unused fetchData function - manual auth system
 
   const fetchReceipts = async () => {
     try {
-      // Fetch receipts from economics canister - will be empty until backend is connected
-      setReceipts([])
-      setPendingAmount(0)
-      setMonthlySpent(0)
+      const principalId = (await agent.getPrincipal()).toString()
+      const res: any = await econCanister.list_receipts([principalId], [50])
+      if (res && 'Ok' in res) {
+        const list = res.Ok as any[]
+        setReceipts(list)
+        const totalPending = list
+          .filter((r: any) => 'Pending' in r.settlement_status)
+          .reduce((sum: number, r: any) => sum + Number(r.fees_breakdown?.total_amount ?? r.actual_cost ?? 0), 0)
+        setPendingAmount(totalPending)
+        const totalSpent = list
+          .filter((r: any) => 'Completed' in r.settlement_status)
+          .reduce((sum: number, r: any) => sum + Number(r.fees_breakdown?.total_amount ?? r.actual_cost ?? 0), 0)
+        setMonthlySpent(totalSpent)
+      } else {
+        setReceipts([])
+        setPendingAmount(0)
+        setMonthlySpent(0)
+      }
     } catch (err) {
       console.error('Failed to fetch receipts:', err)
     }
   }
 
-  const fetchStatements = async () => {
-    try {
-      // Mock statements
-      const mockStatements: Statement[] = [
-        {
-          period: 'January 2025',
-          total_spent: 15750,
-          total_jobs: 47,
-          total_tokens: 125000,
-          cost_breakdown: {
-            agent_fees: 14175,
-            protocol_fees: 472,
-            storage_fees: 315,
-            compute_fees: 788
-          },
-          receipts: receipts.filter(r => r.status === 'settled')
-        }
-      ]
-      setStatements(mockStatements)
-    } catch (err) {
-      console.error('Failed to fetch statements:', err)
-    }
-  }
+  // Remove unused fetchStatements function
 
-  const fetchBalance = async () => {
-    try {
-      // Mock balance
-      setBalance(25000)
-    } catch (err) {
-      console.error('Failed to fetch balance:', err)
-    }
-  }
+  // Remove unused fetchBalance function
 
   const handleGetEstimate = async () => {
     setLoading(true)
     try {
-      // Simulate estimate calculation
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      const priorityMultipliers = { low: 1.0, medium: 1.2, high: 1.5 }
-      const baseCost = Math.round(estimateForm.estimated_tokens * 0.5)
-      const priorityCost = Math.round(baseCost * priorityMultipliers[estimateForm.priority])
-      const protocolFee = Math.round(priorityCost * 0.03)
-      
-      const estimate: Estimate = {
-        base_cost: baseCost,
-        priority_multiplier: priorityMultipliers[estimateForm.priority],
-        protocol_fee: protocolFee,
-        total_cost: priorityCost + protocolFee,
-        estimated_time: estimateForm.priority === 'high' ? '5-15 min' : estimateForm.priority === 'medium' ? '15-30 min' : '30-60 min',
-        confidence: 0.85 + Math.random() * 0.1
+      const priorityMap: any = { low: { Low: null }, medium: { Normal: null }, high: { High: null } }
+      const spec = {
+        job_id: `ui-job-${Date.now()}`,
+        model_id: 'tinyllama',
+        estimated_tokens: estimateForm.estimated_tokens,
+        estimated_compute_cycles: BigInt(1_000_000),
+        priority: priorityMap[estimateForm.priority]
       }
-      
-      setCurrentEstimate(estimate)
+      const res: any = await econCanister.estimate(spec)
+      if (res && 'Ok' in res) {
+        const q = res.Ok as any
+        setCurrentEstimate({
+          base_cost: Number(q.base_cost),
+          priority_multiplier: Number(q.priority_multiplier),
+          protocol_fee: Number(q.protocol_fee),
+          total_cost: Number(q.estimated_cost),
+          estimated_time: estimateForm.priority === 'high' ? '5-15 min' : estimateForm.priority === 'medium' ? '15-30 min' : '30-60 min',
+          confidence: 0.9,
+        })
+      } else {
+        setError((res as any).Err || 'Failed to get estimate')
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to get estimate')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSubscribe = async (amountIcp: number) => {
+    setSubscribeLoading(true)
+    setSubscribeErr(null)
+    setSubscribeMsg(null)
+    try {
+      const payee = (import.meta as any).env?.VITE_SUBSCRIPTION_PAYEE || 'bb007f8af8a8e22304378352289e86a5329c043768c0747c03f66dd0edb473f9'
+      const plug = (window as any).ic?.plug
+      if (!plug) throw new Error('Plug wallet not detected')
+      const connected = await plug.isConnected?.()
+      if (!connected) {
+        await plug.requestConnect({ whitelist: ['ryjl3-tyaaa-aaaaa-aaaba-cai'] })
+      }
+      const e8s = Math.round(amountIcp * 100_000_000)
+      const res = await plug.requestTransfer({ to: payee, amount: e8s })
+      setSubscribeMsg(`Subscription payment submitted. Tx: ${JSON.stringify(res)}`)
+    } catch (e: any) {
+      setSubscribeErr(e?.message || 'Subscription failed')
+    } finally {
+      setSubscribeLoading(false)
     }
   }
 
@@ -179,13 +213,12 @@ const Economics = () => {
 
   const currentStatement = statements[0]
 
-  if (!isConnected) {
+  if (!isPlugAvailable) {
     return (
       <div className="max-w-6xl mx-auto">
         <Card className="text-center py-12">
           <h1 className="text-3xl font-bold text-accentGold mb-4">Economics</h1>
-          <p className="text-textOnDark/70 mb-6">Manage payments, billing, and financial analytics</p>
-          <Button onClick={connect}>Connect to OHMS</Button>
+          <p className="text-textOnDark/70 mb-6">Install Plug wallet to manage payments and financial analytics</p>
         </Card>
       </div>
     )
@@ -193,6 +226,7 @@ const Economics = () => {
 
   return (
     <div className="max-w-7xl mx-auto">
+      <SystemHealthBanner />
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-accentGold mb-2">Economics</h1>
         <p className="text-textOnDark/70">Manage payments, estimates, and financial analytics</p>
@@ -226,6 +260,8 @@ const Economics = () => {
           <p className="text-red-300">Error: {error}</p>
         </Card>
       )}
+
+      <EconomicsAdminMetrics />
 
       {/* Overview Tab */}
       {activeTab === 'overview' && (
@@ -303,12 +339,47 @@ const Economics = () => {
               <h3 className="text-accentGold font-semibold mb-2">View Receipts</h3>
               <p className="text-textOnDark/70 text-sm">Track all payment transactions</p>
             </Card>
-            <Card hover className="text-center cursor-pointer" onClick={() => setShowBillingModal(true)}>
-              <div className="text-3xl mb-3">📋</div>
-              <h3 className="text-accentGold font-semibold mb-2">Download Statement</h3>
-              <p className="text-textOnDark/70 text-sm">Export billing statements</p>
+            <Card className="text-center">
+              <div className="text-3xl mb-3">⭐</div>
+              <h3 className="text-accentGold font-semibold mb-2">Subscriptions</h3>
+              <p className="text-textOnDark/70 text-sm mb-3">Pick a plan. Pay with Plug.</p>
+              <div className="grid grid-cols-2 gap-2">
+                {tiers.slice(1,3).map(t => (
+                  <Button key={t.id} size="sm" onClick={() => handleSubscribe(t.priceIcp!)} loading={subscribeLoading}>
+                    {t.name} • {t.priceIcp} ICP
+                  </Button>
+                ))}
+                <Button size="sm" variant="outline" onClick={() => handleSubscribe(25)} disabled={subscribeLoading}>Team • 25 ICP</Button>
+              </div>
+              {subscribeMsg && <p className="text-green-400 text-xs mt-2">{subscribeMsg}</p>}
+              {subscribeErr && <p className="text-red-400 text-xs mt-2">{subscribeErr}</p>}
             </Card>
           </div>
+
+          {/* Plans */}
+          <Card className="mt-6">
+            <h3 className="text-lg font-semibold text-accentGold mb-4">Plans</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4">
+              {tiers.map((t) => (
+                <div key={t.id} className="p-4 bg-primary/40 rounded border border-accentGold/20">
+                  <div className="flex items-baseline justify-between mb-2">
+                    <h4 className="text-textOnDark font-semibold">{t.name}</h4>
+                    <span className="text-accentGold text-sm">{t.priceIcp === null ? 'Custom' : `${t.priceIcp} ICP/mo`}</span>
+                  </div>
+                  <ul className="text-sm text-textOnDark/80 space-y-1 mb-3">
+                    {t.features.map((f) => (<li key={f}>• {f}</li>))}
+                  </ul>
+                  {t.priceIcp === null ? (
+                    <Button variant="outline" size="sm" fullWidth disabled>Contact</Button>
+                  ) : t.priceIcp === 0 ? (
+                    <Button variant="ghost" size="sm" fullWidth disabled>Current</Button>
+                  ) : (
+                    <Button size="sm" fullWidth onClick={() => handleSubscribe(t.priceIcp!)} loading={subscribeLoading}>Subscribe</Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
         </div>
       )}
 

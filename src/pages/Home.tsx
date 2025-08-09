@@ -1,35 +1,11 @@
 import { useAgent } from '../context/AgentContext'
-import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import Card from '../components/Card'
 
 const Home = () => {
-  const { connect, disconnect, isConnected, canisterIds } = useAgent()
+  const { isPlugAvailable, isConnected, isConnecting, userProfile, connect } = useAgent()
   const navigate = useNavigate()
-  // const [health, setHealth] = useState<any>(null)
-
-  useEffect(() => {
-    if (!isConnected) {
-      connect()
-    }
-  }, [isConnected, connect])
-
-  const testConnection = async () => {
-    try {
-      // Test connection by calling health endpoints
-      const response = await fetch(`http://127.0.0.1:4943/api/v2/canister/${canisterIds.ohms_model}/call`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/cbor',
-        },
-        body: new Uint8Array([]),
-      })
-      console.log('Connection test:', response.ok)
-    } catch (error) {
-      console.error('Connection test failed:', error)
-    }
-  }
 
   return (
     <div className="min-h-screen">
@@ -50,13 +26,64 @@ const Home = () => {
           
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-            <Button size="lg" onClick={() => navigate('/starter-packs')}>
-              Get Started with Starter Packs
-            </Button>
-            <Button variant="outline" size="lg" onClick={() => navigate('/wizard')}>
-              Try AI Wizard
-            </Button>
+            {isConnected ? (
+              <>
+                <Button size="lg" onClick={() => navigate('/starter-packs')}>
+                  🚀 Get Started with Starter Packs
+                </Button>
+                <Button variant="outline" size="lg" onClick={() => navigate('/wizard')}>
+                  🧙‍♂️ Try AI Wizard
+                </Button>
+              </>
+            ) : (
+              <div className="space-y-4">
+                {!isPlugAvailable ? (
+                  <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-6">
+                    <p className="text-red-300 text-center mb-4">
+                      🔌 Plug wallet extension not detected
+                    </p>
+                    <Button 
+                      size="lg" 
+                      onClick={() => window.open('https://plugwallet.ooo/', '_blank')}
+                      className="w-full"
+                    >
+                      Install Plug Wallet
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="bg-accentGold/10 border border-accentGold/30 rounded-lg p-6">
+                    <p className="text-textOnDark text-center mb-4">
+                      🔗 Connect your Plug wallet to access OHMS platform
+                    </p>
+                    <Button 
+                      size="lg" 
+                      onClick={connect} 
+                      disabled={isConnecting}
+                      className="w-full"
+                    >
+                      {isConnecting ? (
+                        <>
+                          <div className="w-5 h-5 border border-current border-t-transparent rounded-full animate-spin mr-2" />
+                          Connecting...
+                        </>
+                      ) : (
+                        '🔗 Connect Plug Wallet'
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+          
+          {/* Welcome message for connected users */}
+          {isConnected && userProfile && (
+            <div className="mb-8 bg-accentGold/10 border border-accentGold/30 rounded-lg p-4">
+              <p className="text-textOnDark text-center">
+                👋 Welcome back, <span className="font-semibold text-accentGold">{userProfile.name}</span>!
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -157,56 +184,28 @@ const Home = () => {
         </div>
       </div>
 
-      <div className="space-y-4">
-        <Card>
-          <p className="text-textOnDark/80 mb-4">
-            Connection Status: {' '}
-            <span className={isConnected ? 'text-green-400' : 'text-red-400'}>
-              {isConnected ? 'Connected' : 'Disconnected'}
-            </span>
-          </p>
-          
-          <div className="flex flex-wrap gap-3">
-            <Button
-              onClick={connect}
-              disabled={isConnected}
-              size="sm"
-            >
-              Connect
-            </Button>
-            
-            <Button
-              variant="outline"
-              onClick={disconnect}
-              disabled={!isConnected}
-              size="sm"
-            >
-              Disconnect
-            </Button>
-            
-            <Button
-              variant="ghost"
-              onClick={testConnection}
-              disabled={!isConnected}
-              size="sm"
-            >
-              Test Connection
-            </Button>
-          </div>
-        </Card>
-
-        <Card>
-          <h4 className="text-textOnDark font-medium mb-3">Canister IDs</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-            {Object.entries(canisterIds).map(([name, id]) => (
-              <div key={name} className="flex justify-between">
-                <span className="text-textOnDark/60">{name}:</span>
-                <span className="font-mono text-textOnDark">{id}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
+      {/* Footer CTA for non-connected users */}
+      {!isConnected && (
+        <div className="py-16">
+          <Card className="text-center bg-gradient-to-r from-accentGold/10 to-accentGold/5 border-accentGold/30">
+            <h3 className="text-2xl font-bold text-accentGold mb-4">
+              Ready to Get Started?
+            </h3>
+            <p className="text-textOnDark/80 mb-6 max-w-md mx-auto">
+              Connect your Plug wallet to access AI agents, create bounties, and deploy smart contracts on the Internet Computer.
+            </p>
+            {!isPlugAvailable ? (
+              <Button onClick={() => window.open('https://plugwallet.ooo/', '_blank')} size="lg">
+                Install Plug Wallet
+              </Button>
+            ) : (
+              <Button onClick={connect} disabled={isConnecting} size="lg">
+                {isConnecting ? 'Connecting...' : '🔗 Connect Wallet'}
+              </Button>
+            )}
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
