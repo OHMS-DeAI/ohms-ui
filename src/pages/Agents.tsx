@@ -38,7 +38,7 @@ interface ChatMessage {
 }
 
 const Agents = () => {
-  const { isConnected, createPlugAgent } = useAgent()
+  const { isConnected, createAuthAgent } = useAgent()
   const [agents, setAgents] = useState<Agent[]>([])
   const [swarmTopK, setSwarmTopK] = useState(3)
   const [swarmWindowMs, setSwarmWindowMs] = useState(100)
@@ -95,7 +95,7 @@ const Agents = () => {
     setLoading(true)
     setError(null)
     try {
-      const plugAgent = await createPlugAgent()
+      const plugAgent = await createAuthAgent()
       if (!plugAgent) {
         throw new Error('Failed to create authenticated agent')
       }

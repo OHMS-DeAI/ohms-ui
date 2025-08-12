@@ -23,7 +23,7 @@ interface TaskRequest {
 }
 
 const AIWizard = () => {
-  const { isPlugAvailable } = useAgent()
+  const { isWalletAvailable } = useAgent()
   const [currentStep, setCurrentStep] = useState(0)
   const [taskRequest, setTaskRequest] = useState<TaskRequest>({
     goal: '',
@@ -223,12 +223,12 @@ This ${request.outputFormat} addresses your specific needs while maintaining a $
     setIsProcessing(false)
   }
 
-  if (!isPlugAvailable) {
+  if (!isWalletAvailable) {
     return (
       <div className="max-w-4xl mx-auto">
         <Card className="text-center py-12">
           <h1 className="text-3xl font-bold text-accentGold mb-4">AI Task Wizard</h1>
-          <p className="text-textOnDark/70 mb-6">Install Plug wallet to start creating AI-powered tasks</p>
+          <p className="text-textOnDark/70 mb-6">Open Oisy wallet to start creating AI-powered tasks</p>
         </Card>
       </div>
     )

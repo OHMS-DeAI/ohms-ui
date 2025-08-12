@@ -120,10 +120,10 @@ export const testPrincipalId = (principalId: string) => {
 }
 
 /**
- * Simulate Plug wallet authentication test
+ * Simulate wallet authentication test
  */
 export const simulatePlugAuth = (principalId: string) => {
-  console.group(`🔌 Simulating Plug Wallet Auth: ${principalId}`)
+  console.group(`🔌 Simulating Wallet Auth: ${principalId}`)
   
   const adminResult = testPrincipalId(principalId)
   

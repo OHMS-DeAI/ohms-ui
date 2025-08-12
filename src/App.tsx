@@ -12,7 +12,11 @@ import ModelCatalog from './pages/ModelCatalog'
 import AIWizard from './pages/AIWizard'
 import StarterPacks from './pages/StarterPacks'
 import Economics from './pages/Economics'
+import Admin from './pages/Admin'
 import { AgentProvider } from './context/AgentContext'
+import { IdentityKitProvider, IdentityKitTheme } from '@nfid/identitykit/react'
+import { OISY } from '@nfid/identitykit'
+import '@nfid/identitykit/react/styles.css'
 
 // Import admin test utility for development
 if (import.meta.env.DEV) {
@@ -21,67 +25,76 @@ if (import.meta.env.DEV) {
 
 function App() {
   return (
-    <AgentProvider>
-      <Router>
-        <div className="min-h-screen bg-primary text-text-on-dark relative overflow-hidden">
-          <ParticleBackground />
-          <div className="relative z-10">
-            <Header />
-            <main className="container mx-auto px-4 py-8">
-              <Routes>
-                {/* Home page - always accessible */}
-                <Route path="/" element={<Home />} />
-                
-                {/* Protected routes - require authentication */}
-                <Route path="/starter-packs" element={
-                  <ProtectedRoute>
-                    <StarterPacks />
-                  </ProtectedRoute>
-                } />
-                <Route path="/wizard" element={
-                  <ProtectedRoute>
-                    <AIWizard />
-                  </ProtectedRoute>
-                } />
-                <Route path="/models" element={
-                  <ProtectedRoute>
-                    <ModelCatalog />
-                  </ProtectedRoute>
-                } />
-                <Route path="/agents" element={
-                  <ProtectedRoute>
-                    <Agents />
-                  </ProtectedRoute>
-                } />
-                <Route path="/bounties" element={
-                  <ProtectedRoute>
-                    <Bounties />
-                  </ProtectedRoute>
-                } />
-                <Route path="/economics" element={
-                  <ProtectedRoute>
-                    <Economics />
-                  </ProtectedRoute>
-                } />
-                <Route path="/receipts" element={
-                  <ProtectedRoute>
-                    <Receipts />
-                  </ProtectedRoute>
-                } />
-                <Route path="/verify" element={
-                  <ProtectedRoute>
-                    <Verify />
-                  </ProtectedRoute>
-                } />
-                
-                {/* Fallback redirect */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </main>
+    <IdentityKitProvider signers={[OISY]} authType="ACCOUNTS" theme={IdentityKitTheme.DARK}>
+      <AgentProvider>
+        <Router>
+          <div className="min-h-screen bg-primary text-text-on-dark relative overflow-hidden">
+            <ParticleBackground />
+            <div className="relative z-10">
+              <Header />
+              <main className="container mx-auto px-4 py-8">
+                <Routes>
+                  {/* Home page - always accessible */}
+                  <Route path="/" element={<Home />} />
+                  
+                  {/* Protected routes - require authentication */}
+                  <Route path="/starter-packs" element={
+                    <ProtectedRoute>
+                      <StarterPacks />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/wizard" element={
+                    <ProtectedRoute>
+                      <AIWizard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/models" element={
+                    <ProtectedRoute>
+                      <ModelCatalog />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/agents" element={
+                    <ProtectedRoute>
+                      <Agents />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/bounties" element={
+                    <ProtectedRoute>
+                      <Bounties />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/economics" element={
+                    <ProtectedRoute>
+                      <Economics />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/receipts" element={
+                    <ProtectedRoute>
+                      <Receipts />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/verify" element={
+                    <ProtectedRoute>
+                      <Verify />
+                    </ProtectedRoute>
+                  } />
+
+                  {/* Admin route - requires authentication; page enforces admin role */}
+                  <Route path="/admin" element={
+                    <ProtectedRoute>
+                      <Admin />
+                    </ProtectedRoute>
+                  } />
+                  
+                  {/* Fallback redirect */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </main>
+            </div>
           </div>
-        </div>
-      </Router>
-    </AgentProvider>
+        </Router>
+      </AgentProvider>
+    </IdentityKitProvider>
   )
 }
 

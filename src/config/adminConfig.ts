@@ -4,9 +4,11 @@
  * Supports environment-specific configuration (.env.local, .env.ic)
  */
 
-// Network detection based on environment
+import { NETWORK as RESOLVED_NETWORK } from './network'
+
+// Network detection based on environment & runtime
 const getCurrentNetwork = (): string => {
-  return import.meta.env.VITE_DFX_NETWORK || import.meta.env.VITE_NETWORK || 'local'
+  return RESOLVED_NETWORK
 }
 
 // Normalize Principal ID for comparison

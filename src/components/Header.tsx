@@ -7,7 +7,7 @@ const Header = () => {
   const location = useLocation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
-  const { isPlugAvailable, isConnected, isConnecting, userProfile, connect, disconnect } = useAgent()
+  const { isWalletAvailable, isConnected, isConnecting, userProfile, connect, disconnect } = useAgent()
 
   const baseNav = [
     { name: 'Home', href: '/', current: location.pathname === '/' },
@@ -19,8 +19,9 @@ const Header = () => {
     { name: 'Economics', href: '/economics', current: location.pathname === '/economics' },
     { name: 'Verify', href: '/verify', current: location.pathname === '/verify' },
   ]
-  // Always show admin link - authentication handled in Admin component
-  const adminNav = [{ name: 'Admin', href: '/admin', current: location.pathname === '/admin' }]
+  // Show Admin link only when user has admin access
+  const { isAdmin } = useAgent()
+  const adminNav = isAdmin ? [{ name: 'Admin', href: '/admin', current: location.pathname === '/admin' }] : []
   const navigation = [...baseNav, ...adminNav]
 
   return (
@@ -63,9 +64,9 @@ const Header = () => {
 
           {/* Wallet / Identity */}
           <div className="hidden md:flex items-center gap-3">
-            {!isPlugAvailable ? (
+            {!isWalletAvailable ? (
               <div className="text-xs text-red-300 px-3 py-1.5 rounded-lg border border-red-500/30">
-                Install Plug
+                Open Oisy
               </div>
             ) : isConnected && userProfile ? (
               <div className="flex items-center gap-2">
@@ -90,7 +91,7 @@ const Header = () => {
                   </>
                 ) : (
                   <>
-                    🔗 Connect Wallet
+                    🔗 Connect Oisy
                   </>
                 )}
               </Button>
@@ -134,9 +135,9 @@ const Header = () => {
                 </Link>
               ))}
               <div className="flex gap-2 px-4">
-                {!isPlugAvailable ? (
+                {!isWalletAvailable ? (
                   <div className="text-xs text-red-300 px-3 py-2 rounded-lg border border-red-500/30 w-full text-center">
-                    Install Plug Wallet
+                    Open Oisy Wallet
                   </div>
                 ) : isConnected && userProfile ? (
                   <div className="flex flex-col gap-2">
@@ -159,7 +160,7 @@ const Header = () => {
                     onClick={() => { connect(); setIsMobileMenuOpen(false) }}
                     disabled={isConnecting}
                   >
-                    {isConnecting ? 'Connecting...' : '🔗 Connect Wallet'}
+                    {isConnecting ? 'Connecting...' : '🔗 Connect Oisy Wallet'}
                   </Button>
                 )}
               </div>

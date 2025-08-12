@@ -1,35 +1,18 @@
 import { Actor, HttpAgent } from '@dfinity/agent';
+import { HOST as RESOLVED_HOST, NETWORK, getCanisterIdsFromEnv } from '../config/network'
 
-// Import the generated declarations
-// These will be available after dfx generate
-const isProdBuild = (import.meta as any).env?.PROD === true;
-const runtimeHost = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : undefined;
-const isMainnetHost = !!runtimeHost && (runtimeHost.endsWith('.icp0.io') || runtimeHost.endsWith('.ic0.app'));
-const envNetwork = (import.meta as any).env?.VITE_DFX_NETWORK as string | undefined;
-const network = isMainnetHost ? 'ic' : (envNetwork || (isProdBuild ? 'ic' : 'local'));
-export const host = network === 'ic' ? 'https://ic0.app' : 'http://127.0.0.1:4943';
+// Centralized host/network resolution
+export const host = RESOLVED_HOST;
 
 // Create an agent
 export const agent = new HttpAgent({ host });
-if (network !== 'ic') {
+if (NETWORK !== 'ic') {
   // Fetch the root key for local development to validate certificates
   agent.fetchRootKey?.().catch(() => console.warn('fetchRootKey failed (local dev)'));
 }
 
-// Environment variables for canister IDs (no placeholders)
-const fromEnv = (k: string): string => {
-  const v = (import.meta as any).env?.[k] ?? (process as any).env?.[k];
-  if (!v) {
-    // Surface a clear error early in development; in prod this should never happen if built with .env.ic
-    console.error(`Missing required env ${k}. Set it in .env.local for local or .env.ic for mainnet builds.`);
-  }
-  return v as string;
-};
-
-const OHMS_MODEL_CANISTER_ID = fromEnv('VITE_OHMS_MODEL_CANISTER_ID');
-const OHMS_AGENT_CANISTER_ID = fromEnv('VITE_OHMS_AGENT_CANISTER_ID');
-const OHMS_COORDINATOR_CANISTER_ID = fromEnv('VITE_OHMS_COORDINATOR_CANISTER_ID');
-const OHMS_ECON_CANISTER_ID = fromEnv('VITE_OHMS_ECON_CANISTER_ID');
+// Canister IDs from env via network config
+const { ohms_model: OHMS_MODEL_CANISTER_ID, ohms_agent: OHMS_AGENT_CANISTER_ID, ohms_coordinator: OHMS_COORDINATOR_CANISTER_ID, ohms_econ: OHMS_ECON_CANISTER_ID } = getCanisterIdsFromEnv()
 
 // Candid interface definitions - matching actual deployed interfaces
 const modelCanisterIdl = ({ IDL }: any) => {
@@ -328,6 +311,11 @@ const econCanisterIdl = ({ IDL }: any) => {
     withdraw: IDL.Func([IDL.Nat64], [ResultUnit], []),
     // Add settle method that was missing
     settle: IDL.Func([Receipt], [ResultText], []),
+    // Admin role APIs
+    is_admin: IDL.Func([], [IDL.Bool], ['query']),
+    list_admins: IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
+    add_admin: IDL.Func([IDL.Text], [ResultUnit], []),
+    remove_admin: IDL.Func([IDL.Text], [ResultUnit], []),
   })
 }
 

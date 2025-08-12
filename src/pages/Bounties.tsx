@@ -37,7 +37,7 @@ interface CreateBountyForm {
 }
 
 const Bounties = () => {
-  const { isConnected, createPlugAgent } = useAgent()
+  const { isConnected, createAuthAgent } = useAgent()
   const [bounties, setBounties] = useState<Bounty[]>([])
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [selectedBounty, setSelectedBounty] = useState<Bounty | null>(null)
@@ -70,7 +70,7 @@ const Bounties = () => {
     setLoading(true)
     setError(null)
     try {
-      const plugAgent = await createPlugAgent()
+      const plugAgent = await createAuthAgent()
       if (!plugAgent) {
         throw new Error('Failed to create authenticated agent')
       }

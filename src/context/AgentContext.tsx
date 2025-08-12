@@ -1,6 +1,16 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
-import { HttpAgent } from '@dfinity/agent'
+import { HttpAgent, type Identity } from '@dfinity/agent'
 import { debugAdminConfig, getAdminStatus, CURRENT_NETWORK, ADMIN_PRINCIPALS } from '../config/adminConfig'
+import { getCanisterIdsFromEnv, NETWORK, HOST } from '../config/network'
+import { 
+  getUserFriendlyErrorMessage,
+  getBrowserGuidance,
+  isBraveBrowser,
+  classifyWalletError,
+  type WalletError
+} from '../utils/walletErrorHandler'
+import { useAuth, useAgent as useIdentityKitAgent, useIdentity } from '@nfid/identitykit/react'
+import { Principal } from '@dfinity/principal'
 
 // Define types for our canisters
 export interface CanisterIds {
@@ -18,12 +28,13 @@ interface UserProfile {
 
 interface AgentContextType {
   canisterIds: CanisterIds
-  isPlugAvailable: boolean
+  isWalletAvailable: boolean
   principal: string | null
   userProfile: UserProfile | null
   isConnected: boolean
   isConnecting: boolean
-  createPlugAgent: () => Promise<HttpAgent | null>
+  connectionError: WalletError | null
+  createAuthAgent: () => Promise<HttpAgent | null>
   getPrincipal: () => Promise<string | null>
   connect: () => Promise<boolean>
   disconnect: () => void
@@ -31,6 +42,7 @@ interface AgentContextType {
   checkAdminStatus: () => Promise<boolean>
   adminData: AdminData | null
   refreshAdminData: () => Promise<void>
+  clearConnectionError: () => void
 }
 
 interface AdminData {
@@ -53,13 +65,8 @@ interface AdminData {
 
 const AgentContext = createContext<AgentContextType | undefined>(undefined)
 
-// Default canister IDs (from our local deployment)
-const defaultCanisterIds: CanisterIds = {
-  ohms_model: import.meta.env.VITE_OHMS_MODEL_CANISTER_ID || '',
-  ohms_agent: import.meta.env.VITE_OHMS_AGENT_CANISTER_ID || '',
-  ohms_coordinator: import.meta.env.VITE_OHMS_COORDINATOR_CANISTER_ID || '',
-  ohms_econ: import.meta.env.VITE_OHMS_ECON_CANISTER_ID || '',
-}
+// Default canister IDs (from centralized network env loader)
+const defaultCanisterIds: CanisterIds = getCanisterIdsFromEnv()
 
 interface AgentProviderProps {
   children: ReactNode
@@ -69,11 +76,25 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
   const [canisterIds] = useState<CanisterIds>(defaultCanisterIds)
   const [principal, setPrincipal] = useState<string | null>(null)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
-  const [isPlugAvailable, setIsPlugAvailable] = useState(false)
+  const [isWalletAvailable, setIsWalletAvailable] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
+  const [connectionError, setConnectionError] = useState<WalletError | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [adminData, setAdminData] = useState<AdminData | null>(null)
+
+  // IdentityKit hooks
+  const { connect: idkitConnect, disconnect: idkitDisconnect } = useAuth()
+  const identity: Identity | undefined = useIdentity()
+  const idkitAgent = useIdentityKitAgent({ host: HOST })
+
+  // No wallet polling needed with IdentityKit; maintain minimal cache
+  const [connectionCache, setConnectionCache] = useState<{
+    status: boolean | null
+    timestamp: number
+  }>({ status: null, timestamp: 0 })
+
+  const CACHE_DURATION = 1000
 
   // Local storage keys
   const STORAGE_KEYS = {
@@ -83,25 +104,16 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     LAST_CONNECTION: 'ohms_last_connection'
   }
   
-  // Extract user profile from Plug wallet
-  const extractUserProfile = async (plug: any, principalStr: string): Promise<UserProfile> => {
+  // Extract user profile from signer/identity
+  const extractUserProfile = async (_unused: unknown, principalStr: string): Promise<UserProfile> => {
     try {
-      // Try to get account info if available
-      let accountInfo = null
-      if (plug.getManagementCanister) {
-        try {
-          accountInfo = await plug.getManagementCanister().getAccountInfo()
-        } catch (error) {
-          // Account info might not be available, that's OK
+      if (NETWORK === 'ic') {
+        return {
+          principal: principalStr,
+          name: `User ${principalStr.slice(0, 8)}...`,
         }
       }
-      
-      const profile: UserProfile = {
-        principal: principalStr,
-        name: accountInfo?.name || `User ${principalStr.slice(0, 8)}...`,
-        accountId: accountInfo?.accountId
-      }
-      
+      const profile: UserProfile = { principal: principalStr, name: `User ${principalStr.slice(0, 8)}...` }
       return profile
     } catch (error) {
       console.warn('Could not extract full user profile:', error)
@@ -111,46 +123,67 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       }
     }
   }
-  
-  // Remove unused network detection variables
 
-  // Check if Plug is available and attempt auto-reconnection
-  useEffect(() => {
-    const initializePlugConnection = async () => {
-      const plug = (window as any).ic?.plug
-      setIsPlugAvailable(!!plug)
-      
-      if (plug) {
-        // Check if user was previously connected
-        const wasConnected = localStorage.getItem(STORAGE_KEYS.WAS_CONNECTED) === 'true'
-        const lastConnection = localStorage.getItem(STORAGE_KEYS.LAST_CONNECTION)
-        const savedPrincipal = localStorage.getItem(STORAGE_KEYS.PRINCIPAL)
-        const savedProfile = localStorage.getItem(STORAGE_KEYS.USER_PROFILE)
-        
-        // Auto-reconnect if user was connected within last 24 hours
-        if (wasConnected && lastConnection && savedPrincipal) {
-          const lastConnectTime = parseInt(lastConnection)
-          const now = Date.now()
-          const dayInMs = 24 * 60 * 60 * 1000
-          
-          if (now - lastConnectTime < dayInMs) {
-            console.log('🔄 Attempting auto-reconnection to Plug wallet...')
-            const profile = savedProfile ? JSON.parse(savedProfile) : null
-            await attemptReconnection(savedPrincipal, profile)
-          } else {
-            // Clear old connection data
-            clearStoredConnection()
-          }
-        }
-      }
+  // Cached connection status checker
+  const checkConnectionCached = async (): Promise<boolean> => {
+    const now = Date.now()
+    
+    // Return cached result if still valid
+    if (connectionCache.status !== null && (now - connectionCache.timestamp) < CACHE_DURATION) {
+      return connectionCache.status
     }
-    
-    // Initial check
-    initializePlugConnection()
-    
-    // Check again after a short delay in case Plug loads later
-    const timer = setTimeout(initializePlugConnection, 1000)
-    return () => clearTimeout(timer)
+
+    try {
+      const connected = Boolean(identity && (await identity.getPrincipal?.()))
+      
+      // Update cache
+      setConnectionCache({
+        status: connected,
+        timestamp: now
+      })
+      
+      // Clear connection error on successful check
+      if (connected) {
+        setConnectionError(null)
+      }
+      
+      return connected
+    } catch (error) {
+      const walletError = classifyWalletError(error)
+      
+      // Don't log or set connection errors for extension errors that don't affect the app
+      if (walletError.type === 'EXTENSION_ERROR' && !walletError.affectsApp) {
+        // Silently ignore extension internal errors
+        return false
+      }
+      
+      console.warn('⚠️ Cached connection check failed:', getUserFriendlyErrorMessage(walletError))
+      
+      // Only set connection error for errors that affect the app
+      if (walletError.affectsApp !== false && walletError.type !== 'UNKNOWN') {
+        setConnectionError(walletError)
+      }
+      
+      return false
+    }
+  }
+  
+  // Initialize wallet availability (IdentityKit)
+  useEffect(() => {
+    setIsWalletAvailable(true)
+    // Attempt to derive state from IdentityKit
+    ;(async () => {
+      try {
+        if (identity) {
+          const p = await identity.getPrincipal()
+          const principalStr = p.toText()
+          setPrincipal(principalStr)
+          setIsConnected(true)
+          const profile = await extractUserProfile(null, principalStr)
+          setUserProfile(profile)
+        }
+      } catch (_) {}
+    })()
   }, [])
   
   const clearStoredConnection = () => {
@@ -167,45 +200,7 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     localStorage.setItem(STORAGE_KEYS.LAST_CONNECTION, Date.now().toString())
   }
   
-  const attemptReconnection = async (expectedPrincipal: string, savedProfile: UserProfile | null) => {
-    try {
-      const plug = (window as any).ic?.plug
-      if (!plug) return false
-      
-      // Check if already connected
-      if (plug.isConnected()) {
-        const currentPrincipal = await plug.getPrincipal()
-        const currentPrincipalStr = currentPrincipal?.toString() || String(currentPrincipal)
-        
-        if (currentPrincipalStr === expectedPrincipal) {
-          setPrincipal(currentPrincipalStr)
-          setIsConnected(true)
-          
-          // Use saved profile or extract fresh one
-          let profile = savedProfile
-          if (!profile) {
-            profile = await extractUserProfile(plug, currentPrincipalStr)
-            // Update storage with fresh profile
-            storeConnection(currentPrincipalStr, profile)
-          }
-          setUserProfile(profile)
-          
-          console.log('✅ Auto-reconnected to Plug wallet:', profile.name || currentPrincipalStr)
-          return true
-        } else {
-          // Different principal, disconnect and clear storage
-          await plug.disconnect()
-          clearStoredConnection()
-        }
-      }
-      
-      return false
-    } catch (error) {
-      console.log('❌ Auto-reconnection failed:', error)
-      clearStoredConnection()
-      return false
-    }
-  }
+  // Removed Plug-specific reconnection
   
   // Check admin status when principal changes
   useEffect(() => {
@@ -227,69 +222,63 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     }
   }, [principal])
 
-  // Connect to Plug wallet (manual connection)
+  // Connect wallet (Oisy via IdentityKit)
   const connect = async (): Promise<boolean> => {
-    if (!isPlugAvailable) {
-      throw new Error('Plug wallet not found. Please install Plug wallet extension.')
-    }
-    
     setIsConnecting(true)
+    setConnectionError(null) // Clear any previous errors
+    
     try {
-      const plug = (window as any).ic?.plug
-      const whitelist = [
-        'ryjl3-tyaaa-aaaaa-aaaba-cai', // ICP ledger
-        canisterIds.ohms_model,
-        canisterIds.ohms_agent,
-        canisterIds.ohms_coordinator,
-        canisterIds.ohms_econ,
-      ]
-      
-      const connected = await plug.requestConnect({ 
-        whitelist,
-        timeout: 50000
-      })
-      
-      if (!connected) {
-        throw new Error('Connection denied by user')
-      }
-      
-      // Get principal and extract user profile
-      const p = await plug.getPrincipal()
-      const principalStr = p?.toString?.() || String(p)
-      const profile = await extractUserProfile(plug, principalStr)
-      
+      await idkitConnect('OISY')
+      // wait for identity to populate this tick
+      const principalRaw = await identity?.getPrincipal()
+      if (!principalRaw) throw new Error('Failed to obtain principal from Oisy')
+      const principalStr = principalRaw.toText()
+      const profile = await extractUserProfile(null, principalStr)
       setPrincipal(principalStr)
       setUserProfile(profile)
       setIsConnected(true)
+      setConnectionError(null)
       storeConnection(principalStr, profile)
+      console.log('✅ Connected to Oisy wallet:', principalStr)
       
-      console.log('✅ Connected to Plug wallet:', profile.name || principalStr)
+      // Log browser-specific guidance if we detected issues earlier
+      if (isBraveBrowser()) {
+        console.log('💡 Brave Browser guidance:', getBrowserGuidance())
+      }
+      
       return true
     } catch (error) {
-      console.error('❌ Failed to connect to Plug wallet:', error)
+      const walletError = classifyWalletError(error)
+      const friendlyMessage = getUserFriendlyErrorMessage(walletError)
+      
+      console.error('❌ Failed to connect to wallet:', friendlyMessage)
+      console.error('💡 Browser guidance:', getBrowserGuidance())
+      
       setIsConnected(false)
-      throw error
+      setConnectionError(walletError)
+      throw walletError
     } finally {
       setIsConnecting(false)
     }
   }
   
-  // Create authenticated agent when needed
-  const createPlugAgent = async (): Promise<HttpAgent | null> => {
+  // Create authenticated agent from IdentityKit when needed
+  const createAuthAgent = async (): Promise<HttpAgent | null> => {
     try {
       if (!isConnected) {
         // Try to connect first
         await connect()
       }
-      
-      const plug = (window as any).ic?.plug
-      if (!plug || !plug.isConnected()) {
-        throw new Error('Plug wallet not connected')
+
+      // IdentityKit exposes a compatible Agent wrapper
+      if (!idkitAgent) throw new Error('Wallet agent unavailable')
+      // Ensure correct host for local dev
+      if (NETWORK !== 'ic') {
+        await idkitAgent.fetchRootKey()
       }
-      
-      return plug.agent
+      return idkitAgent as unknown as HttpAgent
     } catch (error) {
-      console.error('Failed to create Plug agent:', error)
+      console.error('Failed to create authenticated agent:', error)
       throw error
     }
   }
@@ -297,17 +286,28 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
   // Get principal without creating full agent
   const getPrincipal = async (): Promise<string | null> => {
     try {
-      const plug = (window as any).ic?.plug
-      if (!plug) return null
+      const connected = await checkConnectionCached()
+      if (!connected) return null
       
-      if (!plug.isConnected()) return null
-      
-      const p = await plug.getPrincipal()
-      const principalStr = p?.toString?.() || String(p)
+      const p = await identity?.getPrincipal()
+      const principalStr = p ? Principal.from(p).toText() : null
       setPrincipal(principalStr)
       return principalStr
     } catch (error) {
-      console.error('Failed to get principal:', error)
+      const walletError = classifyWalletError(error)
+      
+      // Don't log or set errors for extension issues that don't affect the app
+      if (walletError.type === 'EXTENSION_ERROR' && !walletError.affectsApp) {
+        // Silently fail for extension internal errors
+        return null
+      }
+      
+      console.error('Failed to get principal:', getUserFriendlyErrorMessage(walletError))
+      
+      // Only set connection error for errors that affect the app
+      if (walletError.affectsApp !== false) {
+        setConnectionError(walletError)
+      }
       return null
     }
   }
@@ -318,23 +318,25 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     setIsConnected(false)
     setIsAdmin(false)
     setAdminData(null)
+    setConnectionError(null) // Clear connection errors
     clearStoredConnection()
     
-    // Also disconnect from Plug if connected
+    // Also disconnect from wallet if connected
     try {
-      const plug = (window as any).ic?.plug
-      if (plug && plug.disconnect) {
-        plug.disconnect()
-      }
+      idkitDisconnect()
     } catch (error) {
-      console.warn('Error disconnecting from Plug:', error)
+      console.warn('Error disconnecting from wallet:', error)
     }
     
-    console.log('🚪 Disconnected from Plug wallet')
+    console.log('🚪 Disconnected from wallet')
+  }
+
+  const clearConnectionError = () => {
+    setConnectionError(null)
   }
 
   const checkAdminStatus = async (): Promise<boolean> => {
-    if (!isPlugAvailable || !principal) {
+    if (!isWalletAvailable || !principal) {
       setIsAdmin(false)
       return false
     }
@@ -374,13 +376,13 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     
     try {
       const { createModelActor, createAgentActor, createCoordinatorActor, createEconActor } = await import('../services/canisterService')
-      const plugAgent = await createPlugAgent()
-      if (!plugAgent) return
+      const authAgent = await createAuthAgent()
+      if (!authAgent) return
       
-      const modelActor = createModelActor(plugAgent)
-      const agentActor = createAgentActor(plugAgent as any)
-      const coordinatorActor = createCoordinatorActor(plugAgent as any)
-      const econActor = createEconActor(plugAgent as any)
+      const modelActor = createModelActor(authAgent)
+      const agentActor = createAgentActor(authAgent as any)
+      const coordinatorActor = createCoordinatorActor(authAgent as any)
+      const econActor = createEconActor(authAgent as any)
       
       const [models, agentHealth, coordinatorHealth, econHealth] = await Promise.all([
         modelActor.list_models([]),
@@ -418,12 +420,13 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     <AgentContext.Provider
       value={{
         canisterIds,
-        isPlugAvailable,
+        isWalletAvailable,
         principal,
         userProfile,
         isConnected,
         isConnecting,
-        createPlugAgent,
+        connectionError,
+        createAuthAgent,
         getPrincipal,
         connect,
         disconnect,
@@ -431,6 +434,7 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         checkAdminStatus,
         adminData,
         refreshAdminData,
+        clearConnectionError,
       }}
     >
       {children}

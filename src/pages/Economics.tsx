@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAgent } from '../context/AgentContext'
 import { econCanister, agent } from '../services/canisterService'
+import { LedgerCanister, AccountIdentifier } from '@dfinity/ledger-icp'
 
 import Card from '../components/Card'
 import Badge from '../components/Badge'
@@ -48,7 +49,7 @@ interface Statement {
 }
 
 const Economics = () => {
-  const { isPlugAvailable } = useAgent()
+  const { isWalletAvailable, createAuthAgent } = useAgent()
   const [activeTab, setActiveTab] = useState<'overview' | 'receipts' | 'estimates' | 'billing'>('overview')
   const [receipts, setReceipts] = useState<Receipt[]>([])
   const [statements] = useState<Statement[]>([])
@@ -183,15 +184,14 @@ const Economics = () => {
     setSubscribeMsg(null)
     try {
       const payee = (import.meta as any).env?.VITE_SUBSCRIPTION_PAYEE || 'bb007f8af8a8e22304378352289e86a5329c043768c0747c03f66dd0edb473f9'
-      const plug = (window as any).ic?.plug
-      if (!plug) throw new Error('Plug wallet not detected')
-      const connected = await plug.isConnected?.()
-      if (!connected) {
-        await plug.requestConnect({ whitelist: ['ryjl3-tyaaa-aaaaa-aaaba-cai'] })
-      }
-      const e8s = Math.round(amountIcp * 100_000_000)
-      const res = await plug.requestTransfer({ to: payee, amount: e8s })
-      setSubscribeMsg(`Subscription payment submitted. Tx: ${JSON.stringify(res)}`)
+      const authAgent = await createAuthAgent()
+      if (!authAgent) throw new Error('Wallet agent not available')
+      const ledger = LedgerCanister.create({ agent: authAgent as any })
+      const amountE8s = BigInt(Math.round(amountIcp * 100_000_000))
+      // Use legacy transfer with AccountIdentifier hex
+      const toAccountId = AccountIdentifier.fromHex(payee)
+      const block = await ledger.transfer({ to: toAccountId, amount: amountE8s })
+      setSubscribeMsg(`Subscription payment submitted. Block: ${block.toString()}`)
     } catch (e: any) {
       setSubscribeErr(e?.message || 'Subscription failed')
     } finally {
@@ -213,12 +213,12 @@ const Economics = () => {
 
   const currentStatement = statements[0]
 
-  if (!isPlugAvailable) {
+  if (!isWalletAvailable) {
     return (
       <div className="max-w-6xl mx-auto">
         <Card className="text-center py-12">
           <h1 className="text-3xl font-bold text-accentGold mb-4">Economics</h1>
-          <p className="text-textOnDark/70 mb-6">Install Plug wallet to manage payments and financial analytics</p>
+          <p className="text-textOnDark/70 mb-6">Open Oisy wallet to manage payments and financial analytics</p>
         </Card>
       </div>
     )
@@ -342,7 +342,7 @@ const Economics = () => {
             <Card className="text-center">
               <div className="text-3xl mb-3">⭐</div>
               <h3 className="text-accentGold font-semibold mb-2">Subscriptions</h3>
-              <p className="text-textOnDark/70 text-sm mb-3">Pick a plan. Pay with Plug.</p>
+              <p className="text-textOnDark/70 text-sm mb-3">Pick a plan. Pay with Oisy.</p>
               <div className="grid grid-cols-2 gap-2">
                 {tiers.slice(1,3).map(t => (
                   <Button key={t.id} size="sm" onClick={() => handleSubscribe(t.priceIcp!)} loading={subscribeLoading}>

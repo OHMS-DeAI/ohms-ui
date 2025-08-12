@@ -30,7 +30,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <LoadingSpinner size="lg" />
-          <p className="text-textOnDark/70 mt-4">Connecting to Plug wallet...</p>
+          <p className="text-textOnDark/70 mt-4">Connecting to wallet...</p>
         </div>
       </div>
     )
@@ -45,8 +45,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   if (!isConnected) {
     const handleModalClose = () => {
       setShowAuthModal(false)
-      // Navigate back to home page
-      navigate('/', { replace: true })
+      // Only redirect to home if user is still not connected (cancelled modal)
+      if (!isConnected) {
+        navigate('/', { replace: true })
+      }
     }
 
     return (
@@ -55,7 +57,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         <AuthModal 
           isOpen={showAuthModal} 
           onClose={handleModalClose}
-          redirectMessage={`Connect your Plug wallet to access ${getPageName(location.pathname)}.`}
+          redirectMessage={`Connect your Oisy wallet to access ${getPageName(location.pathname)}.`}
         />
         
         {/* Show a placeholder while modal is open */}

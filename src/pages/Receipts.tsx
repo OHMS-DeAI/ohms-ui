@@ -3,7 +3,7 @@ import { useAgent } from '../context/AgentContext'
 import { econCanister, agent } from '../services/canisterService'
 
 const Receipts = () => {
-  const { isPlugAvailable } = useAgent()
+  const { isWalletAvailable } = useAgent()
   const [receipts, setReceipts] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -56,14 +56,14 @@ const Receipts = () => {
         <h1 className="text-4xl font-bold text-accentGold">Receipts</h1>
         <button
           onClick={fetchReceipts}
-          disabled={!isPlugAvailable || loading}
+          disabled={!isWalletAvailable || loading}
           className="px-4 py-2 bg-accentGold text-primary rounded disabled:opacity-50"
         >
           {loading ? 'Loading...' : 'Refresh Receipts'}
         </button>
       </div>
 
-      {!isPlugAvailable && (
+      {!isWalletAvailable && (
         <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-6">
           <p className="text-red-200">Please connect to view receipts</p>
         </div>
@@ -161,7 +161,7 @@ const Receipts = () => {
           </div>
         ))}
 
-        {receipts.length === 0 && !loading && isPlugAvailable && (
+        {receipts.length === 0 && !loading && isWalletAvailable && (
           <div className="text-center py-12">
             <p className="text-textOnDark/60">No receipts available. Click "Refresh Receipts" to load.</p>
           </div>

@@ -4,7 +4,7 @@ import Button from '../components/Button'
 import Card from '../components/Card'
 
 const Home = () => {
-  const { isPlugAvailable, isConnected, isConnecting, userProfile, connect } = useAgent()
+  const { isWalletAvailable, isConnected, isConnecting, userProfile, connect } = useAgent()
   const navigate = useNavigate()
 
   return (
@@ -37,23 +37,23 @@ const Home = () => {
               </>
             ) : (
               <div className="space-y-4">
-                {!isPlugAvailable ? (
+                {!isWalletAvailable ? (
                   <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-6">
                     <p className="text-red-300 text-center mb-4">
-                      🔌 Plug wallet extension not detected
+                      🔌 Oisy wallet not available
                     </p>
                     <Button 
                       size="lg" 
-                      onClick={() => window.open('https://plugwallet.ooo/', '_blank')}
+                      onClick={() => window.open('https://oisy.com', '_blank')}
                       className="w-full"
                     >
-                      Install Plug Wallet
+                      Open Oisy Wallet
                     </Button>
                   </div>
                 ) : (
                   <div className="bg-accentGold/10 border border-accentGold/30 rounded-lg p-6">
                     <p className="text-textOnDark text-center mb-4">
-                      🔗 Connect your Plug wallet to access OHMS platform
+                      🔗 Connect your Oisy wallet to access OHMS platform
                     </p>
                     <Button 
                       size="lg" 
@@ -67,7 +67,7 @@ const Home = () => {
                           Connecting...
                         </>
                       ) : (
-                        '🔗 Connect Plug Wallet'
+                        '🔗 Connect Oisy Wallet'
                       )}
                     </Button>
                   </div>
@@ -192,11 +192,11 @@ const Home = () => {
               Ready to Get Started?
             </h3>
             <p className="text-textOnDark/80 mb-6 max-w-md mx-auto">
-              Connect your Plug wallet to access AI agents, create bounties, and deploy smart contracts on the Internet Computer.
+              Connect your Oisy wallet to access AI agents, create bounties, and deploy smart contracts on the Internet Computer.
             </p>
-            {!isPlugAvailable ? (
-              <Button onClick={() => window.open('https://plugwallet.ooo/', '_blank')} size="lg">
-                Install Plug Wallet
+            {!isWalletAvailable ? (
+              <Button onClick={() => window.open('https://oisy.com', '_blank')} size="lg">
+                Open Oisy Wallet
               </Button>
             ) : (
               <Button onClick={connect} disabled={isConnecting} size="lg">

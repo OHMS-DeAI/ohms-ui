@@ -31,7 +31,7 @@ interface Model {
 }
 
 const ModelCatalog = () => {
-  const { isPlugAvailable, createPlugAgent } = useAgent()
+  const { isWalletAvailable, createAuthAgent } = useAgent()
   const [models, setModels] = useState<Model[]>([])
   const [filteredModels, setFilteredModels] = useState<Model[]>([])
   const [loading, setLoading] = useState(false)
@@ -51,9 +51,9 @@ const ModelCatalog = () => {
     setError(null)
     try {
       // Create authenticated agent when needed
-      const plugAgent = await createPlugAgent()
+      const plugAgent = await createAuthAgent()
       if (!plugAgent) {
-        throw new Error('Authentication required. Please connect with Plug wallet.')
+        throw new Error('Authentication required. Please connect your wallet.')
       }
       
       const list = await listModels(undefined, plugAgent)
@@ -192,15 +192,15 @@ const ModelCatalog = () => {
           <h1 className="text-4xl font-bold text-accentGold mb-2">Model Catalog</h1>
           <p className="text-textOnDark/70">Discover and verify quantized AI models on OHMS</p>
         </div>
-        <Button onClick={fetchModels} loading={loading} disabled={!isPlugAvailable}>
+        <Button onClick={fetchModels} loading={loading} disabled={!isWalletAvailable}>
           Refresh Models
         </Button>
       </div>
 
-      {!isPlugAvailable && (
+      {!isWalletAvailable && (
         <Card className="mb-6">
           <div className="text-center">
-            <p className="text-red-300 mb-4">Plug wallet not found. Please install Plug wallet extension.</p>
+            <p className="text-red-300 mb-4">Oisy wallet not available. Please open Oisy wallet.</p>
           </div>
         </Card>
       )}
@@ -330,7 +330,7 @@ const ModelCatalog = () => {
         </div>
       )}
 
-      {filteredModels.length === 0 && !loading && isPlugAvailable && (
+      {filteredModels.length === 0 && !loading && isWalletAvailable && (
         <Card className="text-center py-12">
           <p className="text-textOnDark/60 mb-4">No models found matching your criteria</p>
           <Button variant="ghost" onClick={() => {

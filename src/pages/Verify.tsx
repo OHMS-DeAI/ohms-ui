@@ -3,7 +3,7 @@ import { useAgent } from '../context/AgentContext'
 import { modelCanister } from '../services/canisterService'
 
 const Verify = () => {
-  const { isPlugAvailable } = useAgent()
+  const { isWalletAvailable } = useAgent()
   const [manifestId, setManifestId] = useState('')
   const [receiptId, setReceiptId] = useState('')
   const [verification, setVerification] = useState<any>(null)
@@ -87,7 +87,7 @@ const Verify = () => {
     <div className="max-w-4xl mx-auto">
       <h1 className="text-4xl font-bold text-accentGold mb-8">Verify</h1>
 
-      {!isPlugAvailable && (
+      {!isWalletAvailable && (
         <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-6">
           <p className="text-red-200">Please connect to use verification features</p>
         </div>
@@ -113,12 +113,12 @@ const Verify = () => {
               onChange={(e) => setManifestId(e.target.value)}
               placeholder="Enter manifest ID or model ID"
               className="w-full p-3 bg-primary/60 border border-accentGold/40 rounded text-textOnDark"
-              disabled={!isPlugAvailable}
+              disabled={!isWalletAvailable}
             />
             
             <button
               onClick={verifyManifest}
-              disabled={!isPlugAvailable || loading || !manifestId.trim()}
+              disabled={!isWalletAvailable || loading || !manifestId.trim()}
               className="w-full px-4 py-3 bg-accentGold text-primary rounded disabled:opacity-50"
             >
               {loading ? 'Verifying...' : 'Verify Manifest'}
@@ -139,12 +139,12 @@ const Verify = () => {
               onChange={(e) => setReceiptId(e.target.value)}
               placeholder="Enter receipt ID"
               className="w-full p-3 bg-primary/60 border border-accentGold/40 rounded text-textOnDark"
-              disabled={!isPlugAvailable}
+              disabled={!isWalletAvailable}
             />
             
             <button
               onClick={verifyReceipt}
-              disabled={!isPlugAvailable || loading || !receiptId.trim()}
+              disabled={!isWalletAvailable || loading || !receiptId.trim()}
               className="w-full px-4 py-3 bg-accentGold text-primary rounded disabled:opacity-50"
             >
               {loading ? 'Verifying...' : 'Verify Receipt'}

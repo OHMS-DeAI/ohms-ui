@@ -19,8 +19,7 @@ type HealthStatuses = {
 }
 
 const Admin = () => {
-  const { isPlugAvailable, createPlugAgent } = useAgent()
-  // For now, assume anyone with Plug is admin - real role check would require authentication
+  const { isWalletAvailable, createAuthAgent, isAdmin: hasAdminRole, checkAdminStatus, principal } = useAgent()
   const [isAdmin, setIsAdmin] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
 
@@ -40,45 +39,55 @@ const Admin = () => {
   const [econHealth, setEconHealth] = useState<any>(null)
   const [policy, setPolicy] = useState<any>(null)
   const [admins, setAdmins] = useState<string[]>([])
+  const [canisterAdmin, setCanisterAdmin] = useState<boolean | null>(null)
 
   // Check admin status when component mounts
   useEffect(() => {
-    const checkAdminStatus = async () => {
-      if (!isPlugAvailable) {
+    const verifyAdminAccess = async () => {
+      if (!isWalletAvailable) {
         setAuthChecked(true)
         return
       }
       
       try {
-        const principal = await createPlugAgent()
-        if (principal) {
-          // For demo, assume authenticated users are admin
-          // In production, you'd check against a list of admin principals
-          setIsAdmin(true)
-          setAuthChecked(true)
+        // Ensure we have a connected agent (will trigger login flow if needed)
+        const agent = await createAuthAgent()
+        const admin = await checkAdminStatus()
+        setIsAdmin(admin || hasAdminRole)
+        // Also record canister-side admin flag for UX
+        try {
+          if (agent) {
+            const { createEconActor } = await import('../services/canisterService')
+            const econ = createEconActor(agent as any) as any
+            const res = await econ.is_admin()
+            setCanisterAdmin(!!res)
+          }
+        } catch {
+          setCanisterAdmin(null)
         }
+        setAuthChecked(true)
       } catch (error) {
         console.error('Failed to check admin status:', error)
         setAuthChecked(true)
       }
     }
     
-    checkAdminStatus()
-  }, [isPlugAvailable, createPlugAgent])
+    verifyAdminAccess()
+  }, [isWalletAvailable, createAuthAgent, hasAdminRole, checkAdminStatus])
 
   const refreshAll = async () => {
     setLoading(true)
     setError(null)
     try {
       // Create authenticated agent when needed
-      const plugAgent = await createPlugAgent()
+      const plugAgent = await createAuthAgent()
       if (!plugAgent) {
-        throw new Error('Authentication required. Please connect with Plug wallet.')
+        throw new Error('Authentication required. Please connect your wallet.')
       }
       
       // Model - use authenticated agent
       const modelActor = createModelActor(plugAgent)
-      const agentActor = createAgentActor(plugAgent as any) 
+      const agentActor = createAgentActor(import.meta.env.VITE_OHMS_AGENT_CANISTER_ID, plugAgent as any)
       const coordinatorActor = createCoordinatorActor(plugAgent as any)
       const econActor = createEconActor(plugAgent as any)
       
@@ -97,7 +106,7 @@ const Admin = () => {
       setAudit((modelAudit as any[]).slice(-10).reverse())
 
       // Agent
-      const ah = await agentActor.health()
+      const ah = await (agentActor as any).health()
       setAgentHealth(ah)
       try {
         const ls: any = await agentActor.get_loader_stats()
@@ -138,6 +147,25 @@ const Admin = () => {
     }
   }
 
+  const activateCanisterAdmin = async () => {
+    try {
+      const agent = await createAuthAgent()
+      if (!agent || !principal) throw new Error('Not connected')
+      const { createEconActor } = await import('../services/canisterService')
+      const econ = createEconActor(agent as any) as any
+      const res = await econ.add_admin(principal)
+      // If Result, handle variant shape; otherwise assume success
+      if (res && typeof res === 'object' && 'Err' in res) {
+        throw new Error(res.Err as string)
+      }
+      // Re-check
+      const check = await econ.is_admin()
+      setCanisterAdmin(!!check)
+    } catch (e: any) {
+      setError(e?.message || 'Failed to activate canister admin')
+    }
+  }
+
   if (!authChecked) {
     return (
       <div className="max-w-6xl mx-auto">
@@ -148,12 +176,12 @@ const Admin = () => {
     )
   }
   
-  if (!isPlugAvailable) {
+  if (!isWalletAvailable) {
     return (
       <div className="max-w-6xl mx-auto">
         <Card className="text-center py-12">
           <h1 className="text-3xl font-bold text-accentGold mb-4">Admin</h1>
-          <p className="text-textOnDark/70 mb-4">Plug wallet not found. Please install Plug wallet extension.</p>
+          <p className="text-textOnDark/70 mb-4">Oisy wallet not available. Please open Oisy wallet.</p>
         </Card>
       </div>
     )
@@ -165,7 +193,15 @@ const Admin = () => {
         <Card className="text-center py-12">
           <h1 className="text-3xl font-bold text-accentGold mb-4">Admin</h1>
           <p className="text-textOnDark/70 mb-4">Authentication required to access admin panel.</p>
-          <Button onClick={refreshAll}>Connect & Access Admin</Button>
+          {canisterAdmin === false && (
+            <p className="text-sm text-textOnDark/60 mb-3">Your principal is recognized in the UI allowlist, but not in the canister. If you are the deployer or an existing admin, grant yourself canister admin below.</p>
+          )}
+          <div className="flex items-center justify-center gap-3">
+            <Button onClick={refreshAll}>Connect & Re-check</Button>
+            {canisterAdmin === false && (
+              <Button variant="outline" onClick={activateCanisterAdmin}>Grant Canister Admin</Button>
+            )}
+          </div>
         </Card>
       </div>
     )
