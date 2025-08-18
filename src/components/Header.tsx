@@ -7,22 +7,34 @@ const Header = () => {
   const location = useLocation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
-  const { isWalletAvailable, isConnected, isConnecting, userProfile, connect, disconnect } = useAgent()
+  const { isWalletAvailable, isConnected, isConnecting, userProfile, connect, disconnect, isAdmin } = useAgent()
 
-  const baseNav = [
+  // User navigation - for regular users
+  const userNav = [
     { name: 'Home', href: '/', current: location.pathname === '/' },
-    { name: 'Starter Packs', href: '/starter-packs', current: location.pathname === '/starter-packs' },
-    { name: 'AI Wizard', href: '/wizard', current: location.pathname === '/wizard' },
+    { name: 'Create Agents', href: '/create-agent', current: location.pathname === '/create-agent' },
+    { name: 'My Agents', href: '/agents', current: location.pathname === '/agents' },
+    { name: 'Subscription', href: '/subscription', current: location.pathname === '/subscription' },
     { name: 'Models', href: '/models', current: location.pathname === '/models' },
-    { name: 'Agents', href: '/agents', current: location.pathname === '/agents' },
-    { name: 'Bounties', href: '/bounties', current: location.pathname === '/bounties' },
     { name: 'Economics', href: '/economics', current: location.pathname === '/economics' },
     { name: 'Verify', href: '/verify', current: location.pathname === '/verify' },
   ]
-  // Show Admin link only when user has admin access
-  const { isAdmin } = useAgent()
-  const adminNav = isAdmin ? [{ name: 'Admin', href: '/admin', current: location.pathname === '/admin' }] : []
-  const navigation = [...baseNav, ...adminNav]
+
+  // Admin navigation - only shown to admins
+  const adminNav = isAdmin ? [
+    { name: 'Admin Dashboard', href: '/admin', current: location.pathname === '/admin' },
+    { name: 'Platform Curation', href: '/admin/novaq', current: location.pathname === '/admin/novaq' },
+  ] : []
+
+  // Legacy navigation for backward compatibility
+  const legacyNav = [
+    { name: 'Starter Packs', href: '/starter-packs', current: location.pathname === '/starter-packs' },
+    { name: 'AI Wizard', href: '/wizard', current: location.pathname === '/wizard' },
+    { name: 'Agent Creator', href: '/agent-creator', current: location.pathname === '/agent-creator' },
+  ]
+
+  // Combine navigation based on user role
+  const navigation = [...userNav, ...adminNav, ...legacyNav]
 
   return (
     <header className="glass-morph sticky top-0 z-50 shadow-lg">
@@ -72,6 +84,7 @@ const Header = () => {
               <div className="flex items-center gap-2">
                 <div className="text-xs text-textOnDark/80 px-3 py-1.5 rounded-lg border border-accentGold/30 bg-accentGold/10">
                   👤 {userProfile.name}
+                  {isAdmin && <span className="ml-1 text-accentGold">(Admin)</span>}
                 </div>
                 <Button variant="outline" size="sm" onClick={disconnect}>
                   Disconnect
@@ -143,6 +156,7 @@ const Header = () => {
                   <div className="flex flex-col gap-2">
                     <div className="text-xs text-textOnDark/80 px-3 py-2 rounded-lg border border-accentGold/30 bg-accentGold/10 w-full text-center">
                       👤 {userProfile.name}
+                      {isAdmin && <span className="ml-1 text-accentGold">(Admin)</span>}
                     </div>
                     <Button 
                       variant="outline" 

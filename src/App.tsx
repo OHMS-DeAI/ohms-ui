@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import ParticleBackground from './components/ParticleBackground'
 import Header from './components/Header'
 import ProtectedRoute from './components/ProtectedRoute'
+import AdminRoute from './components/AdminRoute'
 import Agents from './pages/Agents'
 import Verify from './pages/Verify'
 import Home from './pages/Home'
@@ -11,8 +12,10 @@ import AIWizard from './pages/AIWizard'
 import StarterPacks from './pages/StarterPacks'
 import Economics from './pages/Economics'
 import Admin from './pages/Admin'
+import AdminNovaq from './pages/AdminNovaq'
 import Subscription from './pages/Subscription'
 import AgentCreator from './pages/AgentCreator'
+import UserAgentCreator from './pages/UserAgentCreator'
 import { AgentProvider } from './context/AgentContext'
 import { IdentityKitProvider, IdentityKitTheme } from '@nfid/identitykit/react'
 import { OISY } from '@nfid/identitykit'
@@ -37,7 +40,7 @@ function App() {
                   {/* Home page - always accessible */}
                   <Route path="/" element={<Home />} />
                   
-                  {/* Protected routes - require authentication */}
+                  {/* User Routes - require authentication */}
                   <Route path="/starter-packs" element={
                     <ProtectedRoute>
                       <StarterPacks />
@@ -70,21 +73,30 @@ function App() {
                   } />
                   <Route path="/create-agent" element={
                     <ProtectedRoute>
+                      <UserAgentCreator />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/agent-creator" element={
+                    <ProtectedRoute>
                       <AgentCreator />
                     </ProtectedRoute>
                   } />
-
                   <Route path="/verify" element={
                     <ProtectedRoute>
                       <Verify />
                     </ProtectedRoute>
                   } />
 
-                  {/* Admin route - requires authentication; page enforces admin role */}
+                  {/* Admin Routes - require admin authentication */}
                   <Route path="/admin" element={
-                    <ProtectedRoute>
+                    <AdminRoute>
                       <Admin />
-                    </ProtectedRoute>
+                    </AdminRoute>
+                  } />
+                  <Route path="/admin/novaq" element={
+                    <AdminRoute>
+                      <AdminNovaq />
+                    </AdminRoute>
                   } />
                   
                   {/* Fallback redirect */}
