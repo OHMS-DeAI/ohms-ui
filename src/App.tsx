@@ -4,8 +4,6 @@ import ParticleBackground from './components/ParticleBackground'
 import Header from './components/Header'
 import ProtectedRoute from './components/ProtectedRoute'
 import Agents from './pages/Agents'
-import Bounties from './pages/Bounties'
-import Receipts from './pages/Receipts'
 import Verify from './pages/Verify'
 import Home from './pages/Home'
 import ModelCatalog from './pages/ModelCatalog'
@@ -13,6 +11,8 @@ import AIWizard from './pages/AIWizard'
 import StarterPacks from './pages/StarterPacks'
 import Economics from './pages/Economics'
 import Admin from './pages/Admin'
+import Subscription from './pages/Subscription'
+import AgentCreator from './pages/AgentCreator'
 import { AgentProvider } from './context/AgentContext'
 import { IdentityKitProvider, IdentityKitTheme } from '@nfid/identitykit/react'
 import { OISY } from '@nfid/identitykit'
@@ -58,21 +58,22 @@ function App() {
                       <Agents />
                     </ProtectedRoute>
                   } />
-                  <Route path="/bounties" element={
-                    <ProtectedRoute>
-                      <Bounties />
-                    </ProtectedRoute>
-                  } />
                   <Route path="/economics" element={
                     <ProtectedRoute>
                       <Economics />
                     </ProtectedRoute>
                   } />
-                  <Route path="/receipts" element={
+                  <Route path="/subscription" element={
                     <ProtectedRoute>
-                      <Receipts />
+                      <Subscription />
                     </ProtectedRoute>
                   } />
+                  <Route path="/create-agent" element={
+                    <ProtectedRoute>
+                      <AgentCreator />
+                    </ProtectedRoute>
+                  } />
+
                   <Route path="/verify" element={
                     <ProtectedRoute>
                       <Verify />

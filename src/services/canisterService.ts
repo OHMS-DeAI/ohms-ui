@@ -134,6 +134,23 @@ const agentCanisterIdl = ({ IDL }: any) => {
   const ResultVoid = IDL.Variant({ Ok: IDL.Null, Err: IDL.Text });
   const ResultInference = IDL.Variant({ Ok: InferenceResponse, Err: IDL.Text });
   const ResultConfig = IDL.Variant({ Ok: AgentConfig, Err: IDL.Text });
+  
+  // Agent creation types
+  const AgentCreationRequest = IDL.Record({
+    instruction: IDL.Text,
+    agent_count: IDL.Opt(IDL.Nat32),
+    capabilities: IDL.Opt(IDL.Vec(IDL.Text)),
+    priority: IDL.Opt(IDL.Text),
+  });
+  
+  const AgentCreationResult = IDL.Record({
+    agent_id: IDL.Text,
+    status: IDL.Text,
+    capabilities: IDL.Vec(IDL.Text),
+    estimated_completion: IDL.Opt(IDL.Nat64),
+  });
+  
+  const ResultAgentCreation = IDL.Variant({ Ok: AgentCreationResult, Err: IDL.Text });
 
   return IDL.Service({
     health: IDL.Func([], [AgentHealth], ['query']),
@@ -141,6 +158,7 @@ const agentCanisterIdl = ({ IDL }: any) => {
     infer: IDL.Func([InferenceRequest], [ResultInference], []),
     set_config: IDL.Func([AgentConfig], [ResultVoid], []),
     get_config: IDL.Func([], [ResultConfig], ['query']),
+    create_agent_from_instruction: IDL.Func([AgentCreationRequest], [ResultAgentCreation], []),
   });
 };
 
@@ -278,6 +296,7 @@ const coordinatorCanisterIdl = ({ IDL }: any) => {
 };
 
 const econCanisterIdl = ({ IDL }: any) => {
+  // Core economics types
   const JobPriority = IDL.Variant({ Low: IDL.Null, Normal: IDL.Null, High: IDL.Null, Critical: IDL.Null })
   const JobSpec = IDL.Record({ job_id: IDL.Text, model_id: IDL.Text, estimated_tokens: IDL.Nat32, estimated_compute_cycles: IDL.Nat64, priority: JobPriority })
   const CostQuote = IDL.Record({ job_id: IDL.Text, estimated_cost: IDL.Nat64, base_cost: IDL.Nat64, priority_multiplier: IDL.Float32, protocol_fee: IDL.Nat64, quote_expires_at: IDL.Nat64, quote_id: IDL.Text })
@@ -289,6 +308,24 @@ const econCanisterIdl = ({ IDL }: any) => {
   const Balance = IDL.Record({ principal_id: IDL.Text, available_balance: IDL.Nat64, escrowed_balance: IDL.Nat64, total_earnings: IDL.Nat64, last_updated: IDL.Nat64 })
   const FeePolicy = IDL.Record({ protocol_fee_percentage: IDL.Float32, agent_fee_percentage: IDL.Float32, minimum_fee: IDL.Nat64, priority_multipliers: IDL.Vec(IDL.Tuple(IDL.Text, IDL.Float32)), last_updated: IDL.Nat64 })
   const EconHealth = IDL.Record({ total_escrows: IDL.Nat32, active_escrows: IDL.Nat32, total_receipts: IDL.Nat32, pending_settlements: IDL.Nat32, total_volume: IDL.Nat64, protocol_fees_collected: IDL.Nat64, average_job_cost: IDL.Float64 })
+  
+  // Subscription types
+  const InferenceRate = IDL.Variant({ Standard: IDL.Null, Priority: IDL.Null, Premium: IDL.Null })
+  const TierConfig = IDL.Record({ name: IDL.Text, monthly_fee_usd: IDL.Nat32, max_agents: IDL.Nat32, monthly_agent_creations: IDL.Nat32, token_limit: IDL.Nat64, inference_rate: InferenceRate, features: IDL.Vec(IDL.Text) })
+  const PaymentStatus = IDL.Variant({ Active: IDL.Null, Pending: IDL.Null, Failed: IDL.Null, Cancelled: IDL.Null })
+  const UsageMetrics = IDL.Record({ agents_created_this_month: IDL.Nat32, tokens_used_this_month: IDL.Nat64, inferences_this_month: IDL.Nat32, last_reset_date: IDL.Nat64 })
+  const UserSubscription = IDL.Record({ principal_id: IDL.Text, tier: TierConfig, started_at: IDL.Nat64, expires_at: IDL.Nat64, auto_renew: IDL.Bool, current_usage: UsageMetrics, payment_status: PaymentStatus, created_at: IDL.Nat64, updated_at: IDL.Nat64 })
+  const QuotaRemaining = IDL.Record({ agents_remaining: IDL.Nat32, tokens_remaining: IDL.Nat64, inferences_remaining: IDL.Nat32 })
+  const QuotaValidation = IDL.Record({ allowed: IDL.Bool, reason: IDL.Opt(IDL.Text), remaining_quota: IDL.Opt(QuotaRemaining) })
+  const SubscriptionStats = IDL.Record({ total_subscriptions: IDL.Nat32, active_subscriptions: IDL.Nat32, expired_subscriptions: IDL.Nat32, pending_payments: IDL.Nat32, tier_distribution: IDL.Vec(IDL.Tuple(IDL.Text, IDL.Nat32)), total_monthly_revenue_usd: IDL.Nat32 })
+  
+  // Payment types
+  const PaymentRequest = IDL.Record({ payment_id: IDL.Text, subscription_tier: IDL.Text, amount_usd: IDL.Nat32, amount_icp_e8s: IDL.Nat64, expires_at: IDL.Nat64, created_at: IDL.Nat64 })
+  const PaymentTransaction = IDL.Record({ transaction_id: IDL.Text, payment_request: PaymentRequest, from_principal: IDL.Text, amount_paid_e8s: IDL.Nat64, icp_usd_rate: IDL.Float64, status: IDL.Text, created_at: IDL.Nat64, completed_at: IDL.Opt(IDL.Nat64) })
+  const PaymentVerification = IDL.Record({ verified: IDL.Bool, transaction_id: IDL.Text, amount_verified: IDL.Nat64, verification_time: IDL.Nat64 })
+  const PaymentStats = IDL.Record({ total_transactions: IDL.Nat32, successful_transactions: IDL.Nat32, failed_transactions: IDL.Nat32, total_volume_icp_e8s: IDL.Nat64, total_volume_usd: IDL.Nat32 })
+  
+  // Result types
   const ResultText = IDL.Variant({ Ok: IDL.Text, Err: IDL.Text })
   const ResultQuote = IDL.Variant({ Ok: CostQuote, Err: IDL.Text })
   const ResultBalance = IDL.Variant({ Ok: Balance, Err: IDL.Text })
@@ -296,7 +333,15 @@ const econCanisterIdl = ({ IDL }: any) => {
   const ResultReceipt = IDL.Variant({ Ok: Receipt, Err: IDL.Text })
   const ResultReceipts = IDL.Variant({ Ok: IDL.Vec(Receipt), Err: IDL.Text })
   const ResultUnit = IDL.Variant({ Ok: IDL.Null, Err: IDL.Text })
+  const ResultUserSubscription = IDL.Variant({ Ok: UserSubscription, Err: IDL.Text })
+  const ResultQuotaValidation = IDL.Variant({ Ok: QuotaValidation, Err: IDL.Text })
+  const ResultPaymentRequest = IDL.Variant({ Ok: PaymentRequest, Err: IDL.Text })
+  const ResultPaymentTransaction = IDL.Variant({ Ok: PaymentTransaction, Err: IDL.Text })
+  const ResultPaymentVerification = IDL.Variant({ Ok: PaymentVerification, Err: IDL.Text })
+  const ResultFloat64 = IDL.Variant({ Ok: IDL.Float64, Err: IDL.Text })
+  const ResultNat64 = IDL.Variant({ Ok: IDL.Nat64, Err: IDL.Text })
   return IDL.Service({
+    // Core economics APIs
     health: IDL.Func([], [EconHealth], ['query']),
     estimate: IDL.Func([JobSpec], [ResultQuote], ['query']),
     escrow: IDL.Func([IDL.Text, IDL.Nat64], [ResultText], []),
@@ -309,13 +354,42 @@ const econCanisterIdl = ({ IDL }: any) => {
     update_policy: IDL.Func([FeePolicy], [ResultUnit], []),
     deposit: IDL.Func([IDL.Nat64], [ResultUnit], []),
     withdraw: IDL.Func([IDL.Nat64], [ResultUnit], []),
-    // Add settle method that was missing
     settle: IDL.Func([Receipt], [ResultText], []),
+    
     // Admin role APIs
     is_admin: IDL.Func([], [IDL.Bool], ['query']),
     list_admins: IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
     add_admin: IDL.Func([IDL.Text], [ResultUnit], []),
     remove_admin: IDL.Func([IDL.Text], [ResultUnit], []),
+    
+    // Subscription APIs
+    create_subscription: IDL.Func([IDL.Text, IDL.Bool], [ResultUserSubscription], []),
+    get_user_subscription: IDL.Func([IDL.Opt(IDL.Text)], [IDL.Opt(UserSubscription)], ['query']),
+    get_or_create_free_subscription: IDL.Func([], [ResultUserSubscription], []),
+    update_payment_status: IDL.Func([PaymentStatus], [ResultUnit], []),
+    validate_agent_creation_quota: IDL.Func([], [ResultQuotaValidation], []),
+    validate_token_usage_quota: IDL.Func([IDL.Nat64], [ResultQuotaValidation], []),
+    get_user_usage: IDL.Func([IDL.Opt(IDL.Text)], [IDL.Opt(UsageMetrics)], ['query']),
+    cancel_subscription: IDL.Func([], [ResultUnit], []),
+    renew_subscription: IDL.Func([], [ResultUnit], []),
+    
+    // Admin subscription APIs
+    get_subscription_tiers: IDL.Func([], [IDL.Vec(IDL.Tuple(IDL.Text, TierConfig))], ['query']),
+    list_all_subscriptions: IDL.Func([], [IDL.Vec(UserSubscription)], ['query']),
+    get_subscription_stats: IDL.Func([], [SubscriptionStats], ['query']),
+    
+    // Payment APIs
+    create_payment_request: IDL.Func([IDL.Text], [ResultPaymentRequest], []),
+    process_subscription_payment: IDL.Func([PaymentRequest], [ResultPaymentTransaction], []),
+    verify_payment: IDL.Func([IDL.Text], [ResultPaymentVerification], []),
+    get_payment_transaction: IDL.Func([IDL.Text], [IDL.Opt(PaymentTransaction)], ['query']),
+    list_user_payment_transactions: IDL.Func([IDL.Opt(IDL.Nat32)], [IDL.Vec(PaymentTransaction)], ['query']),
+    get_icp_usd_rate: IDL.Func([], [ResultFloat64], ['query']),
+    convert_usd_to_icp_e8s: IDL.Func([IDL.Nat32], [ResultNat64], []),
+    
+    // Admin payment APIs
+    get_payment_stats: IDL.Func([], [PaymentStats], ['query']),
+    list_all_payment_transactions: IDL.Func([IDL.Opt(IDL.Nat32)], [IDL.Vec(PaymentTransaction)], ['query']),
   })
 }
 
