@@ -24,6 +24,7 @@ const Header = () => {
   const adminNav = isAdmin ? [
     { name: 'Admin Dashboard', href: '/admin', current: location.pathname === '/admin' },
     { name: 'Platform Curation', href: '/admin/novaq', current: location.pathname === '/admin/novaq' },
+    { name: 'Performance Monitor', href: '/admin/performance', current: location.pathname === '/admin/performance' },
   ] : []
 
   // Legacy navigation for backward compatibility

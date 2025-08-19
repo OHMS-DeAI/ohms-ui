@@ -16,6 +16,7 @@ import AdminNovaq from './pages/AdminNovaq'
 import Subscription from './pages/Subscription'
 import AgentCreator from './pages/AgentCreator'
 import UserAgentCreator from './pages/UserAgentCreator'
+import PerformanceDashboard from './pages/PerformanceDashboard'
 import { AgentProvider } from './context/AgentContext'
 import { IdentityKitProvider, IdentityKitTheme } from '@nfid/identitykit/react'
 import { OISY } from '@nfid/identitykit'
@@ -96,6 +97,11 @@ function App() {
                   <Route path="/admin/novaq" element={
                     <AdminRoute>
                       <AdminNovaq />
+                    </AdminRoute>
+                  } />
+                  <Route path="/admin/performance" element={
+                    <AdminRoute>
+                      <PerformanceDashboard />
                     </AdminRoute>
                   } />
                   
