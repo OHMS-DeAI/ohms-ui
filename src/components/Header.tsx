@@ -25,6 +25,7 @@ const Header = () => {
     { name: 'Admin Dashboard', href: '/admin', current: location.pathname === '/admin' },
     { name: 'Platform Curation', href: '/admin/novaq', current: location.pathname === '/admin/novaq' },
     { name: 'Performance Monitor', href: '/admin/performance', current: location.pathname === '/admin/performance' },
+    { name: 'NOVAQ Dashboard', href: '/admin/novaq-dashboard', current: location.pathname === '/admin/novaq-dashboard' },
   ] : []
 
   // Legacy navigation for backward compatibility

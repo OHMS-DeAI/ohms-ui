@@ -17,6 +17,7 @@ import Subscription from './pages/Subscription'
 import AgentCreator from './pages/AgentCreator'
 import UserAgentCreator from './pages/UserAgentCreator'
 import PerformanceDashboard from './pages/PerformanceDashboard'
+import NOVAQDashboard from './pages/NOVAQDashboard'
 import { AgentProvider } from './context/AgentContext'
 import { IdentityKitProvider, IdentityKitTheme } from '@nfid/identitykit/react'
 import { OISY } from '@nfid/identitykit'
@@ -102,6 +103,11 @@ function App() {
                   <Route path="/admin/performance" element={
                     <AdminRoute>
                       <PerformanceDashboard />
+                    </AdminRoute>
+                  } />
+                  <Route path="/admin/novaq-dashboard" element={
+                    <AdminRoute>
+                      <NOVAQDashboard />
                     </AdminRoute>
                   } />
                   

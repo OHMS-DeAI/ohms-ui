@@ -6,6 +6,7 @@ import Badge from '../components/Badge'
 import Button from '../components/Button'
 import { RealTimePerformanceMonitor } from '../components/PerformanceMonitor'
 import { AgentAdminMetrics, ModelAdminMetrics, EconomicsAdminMetrics, SystemHealthBanner } from '../components/AdminMetrics'
+import NOVAQMetrics from '../components/NOVAQMetrics'
 
 interface PlatformAnalytics {
   user_journey: {
@@ -203,6 +204,11 @@ export const PerformanceDashboard: React.FC = () => {
             <AgentAdminMetrics />
             <ModelAdminMetrics />
             <EconomicsAdminMetrics />
+          </div>
+
+          {/* NOVAQ Compression Metrics */}
+          <div className="mb-8">
+            <NOVAQMetrics />
           </div>
 
           {/* Detailed Analytics */}
