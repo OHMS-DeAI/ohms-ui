@@ -98,9 +98,14 @@ const AuthModal: React.FC<AuthModalProps> = ({
               <p className="text-red-300 text-sm mb-2">
                 🔌 Oisy wallet not available
               </p>
-              <p className="text-textOnDark/60 text-xs">
-                You need to open Oisy Wallet to continue
+              <p className="text-textOnDark/60 text-xs mb-3">
+                OISY wallet is required to access OHMS platform
               </p>
+              <div className="text-textOnDark/50 text-xs space-y-1">
+                <p>• Visit https://oisy.com to set up your wallet</p>
+                <p>• Ensure OISY is open in another tab</p>
+                <p>• Enable third-party cookies if needed</p>
+              </div>
             </div>
             
             <Button 

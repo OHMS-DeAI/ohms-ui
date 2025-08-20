@@ -48,7 +48,33 @@ export interface PaymentStats {
 }
 
 export class PaymentService {
-  constructor(private agent: HttpAgent) {}
+  constructor(private agent: HttpAgent) {
+    this.validateAgent()
+  }
+
+  /**
+   * Validate that the agent is properly initialized and compatible
+   */
+  private validateAgent(): void {
+    if (!this.agent) {
+      throw new Error('Payment service requires an authenticated agent')
+    }
+
+    // Check if it's our AgentAdapter with additional validation
+    if ('isReady' in this.agent && typeof this.agent.isReady === 'function') {
+      if (!this.agent.isReady()) {
+        throw new Error('Agent adapter is not ready for payment operations')
+      }
+    }
+
+    // Validate required methods exist
+    const requiredMethods = ['call', 'query']
+    for (const method of requiredMethods) {
+      if (typeof (this.agent as any)[method] !== 'function') {
+        throw new Error(`Agent is missing required method: ${method}`)
+      }
+    }
+  }
 
   /**
    * Get current ICP/USD exchange rate
@@ -233,7 +259,7 @@ export class PaymentService {
   }
 
   /**
-   * Process subscription payment with user confirmation
+   * Process subscription payment with user confirmation and retry logic
    */
   async subscribeWithPayment(subscriptionTier: string): Promise<{
     success: boolean
@@ -241,6 +267,9 @@ export class PaymentService {
     error?: string
   }> {
     try {
+      // Validate agent before starting payment flow
+      this.validateAgent()
+
       // Step 1: Create payment request
       const paymentRequest = await this.createPaymentRequest(subscriptionTier)
       
@@ -250,8 +279,8 @@ export class PaymentService {
         return { success: false, error: 'Payment cancelled by user' }
       }
 
-      // Step 3: Process payment
-      const transaction = await this.processSubscriptionPayment(paymentRequest)
+      // Step 3: Process payment with retry logic
+      const transaction = await this.processSubscriptionPaymentWithRetry(paymentRequest)
       
       // Step 4: Verify payment was successful
       if (transaction.status === PaymentTransactionStatus.Completed) {
@@ -267,11 +296,58 @@ export class PaymentService {
       }
     } catch (error) {
       console.error('Subscription payment failed:', error)
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown payment error' 
+      
+      // Provide specific error messages for common issues
+      let errorMessage = 'Unknown payment error'
+      if (error instanceof Error) {
+        if (error.message.includes('Agent adapter is not ready')) {
+          errorMessage = 'Wallet connection issue - please reconnect your Oisy wallet'
+        } else if (error.message.includes('missing required method')) {
+          errorMessage = 'Wallet compatibility issue - please refresh and try again'
+        } else {
+          errorMessage = error.message
+        }
+      }
+      
+      return { success: false, error: errorMessage }
+    }
+  }
+
+  /**
+   * Process payment with retry logic for reliability
+   */
+  private async processSubscriptionPaymentWithRetry(
+    paymentRequest: PaymentRequest, 
+    maxRetries: number = 2
+  ): Promise<PaymentTransaction> {
+    let lastError: Error | null = null
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        // Re-validate agent before each attempt
+        this.validateAgent()
+        
+        const transaction = await this.processSubscriptionPayment(paymentRequest)
+        
+        // If we get a transaction back, return it (even if failed - that's a business logic failure, not a technical one)
+        return transaction
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error))
+        console.warn(`Payment attempt ${attempt + 1} failed:`, lastError.message)
+        
+        // Don't retry on certain errors
+        if (lastError.message.includes('cancelled') || lastError.message.includes('unauthorized')) {
+          throw lastError
+        }
+        
+        // Wait before retry (exponential backoff)
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000))
+        }
       }
     }
+    
+    throw lastError || new Error('Payment failed after maximum retries')
   }
 
   /**

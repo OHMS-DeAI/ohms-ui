@@ -1,7 +1,7 @@
 interface BadgeProps {
   children: React.ReactNode
   variant?: 'default' | 'success' | 'warning' | 'error' | 'info'
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'xs' | 'sm' | 'md' | 'lg'
   className?: string
 }
 
@@ -15,6 +15,7 @@ const Badge = ({ children, variant = 'default', size = 'md', className = '' }: B
   }
 
   const sizeClasses = {
+    xs: 'px-1.5 py-0.5 text-xs',
     sm: 'px-2 py-0.5 text-xs',
     md: 'px-2 py-1 text-sm',
     lg: 'px-3 py-1.5 text-base'

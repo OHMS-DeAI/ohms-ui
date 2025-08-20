@@ -33,7 +33,7 @@ function App() {
     <IdentityKitProvider signers={[OISY]} authType="ACCOUNTS" theme={IdentityKitTheme.DARK}>
       <AgentProvider>
         <Router>
-          <div className="min-h-screen bg-primary text-text-on-dark relative overflow-hidden">
+          <div className="min-h-screen bg-primary text-text-on-dark relative overflow-hidden" role="main">
             <ParticleBackground />
             <div className="relative z-10">
               <Header />

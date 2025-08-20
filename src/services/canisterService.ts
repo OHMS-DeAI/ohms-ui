@@ -167,8 +167,8 @@ const coordinatorCanisterIdl = ({ IDL }: any) => {
   const Result = IDL.Variant({ Ok: IDL.Text, Err: IDL.Text });
   const Result_8 = IDL.Variant({ Ok: IDL.Null, Err: IDL.Text });
 
-  // Types from actual ohms-coordinator.did
-  const RoutingMode = IDL.Variant({ Unicast: IDL.Null, Broadcast: IDL.Null, Competition: IDL.Null });
+  // OHMS 2.0 Types from actual ohms-coordinator.did
+  const RoutingMode = IDL.Variant({ Unicast: IDL.Null, Broadcast: IDL.Null, AgentSpawning: IDL.Null });
   const AgentRegistration = IDL.Record({
     agent_id: IDL.Text,
     agent_principal: IDL.Text,
@@ -195,8 +195,8 @@ const coordinatorCanisterIdl = ({ IDL }: any) => {
   const CoordinatorHealth = IDL.Record({
     total_agents: IDL.Nat32,
     active_agents: IDL.Nat32,
-    total_bounties: IDL.Nat32,
-    active_bounties: IDL.Nat32,
+    total_agent_creations: IDL.Nat32,
+    active_instructions: IDL.Nat32,
     total_routes_processed: IDL.Nat64,
     average_routing_time_ms: IDL.Float64,
     dedup_cache_size: IDL.Nat32,
@@ -216,56 +216,121 @@ const coordinatorCanisterIdl = ({ IDL }: any) => {
     window_ms: IDL.Nat64,
   });
 
-  const BountySpec = IDL.Record({
-    title: IDL.Text,
-    description: IDL.Text,
-    required_capabilities: IDL.Vec(IDL.Text),
-    max_participants: IDL.Nat32,
-    deadline_timestamp: IDL.Nat64,
-    escrow_amount: IDL.Nat64,
+  // OHMS 2.0 Agent Spawning Types
+  const InstructionRequest = IDL.Record({
+    request_id: IDL.Text,
+    user_principal: IDL.Text,
+    instructions: IDL.Text,
+    agent_count: IDL.Opt(IDL.Nat32),
+    capabilities_required: IDL.Vec(IDL.Text),
+    priority: IDL.Text,
+    created_at: IDL.Nat64,
   });
 
-  const BountyStatus = IDL.Variant({ Open: IDL.Null, InProgress: IDL.Null, Resolved: IDL.Null, Cancelled: IDL.Null, Expired: IDL.Null });
-  const BountySubmission = IDL.Record({ 
-    submission_id: IDL.Text, 
-    bounty_id: IDL.Text, 
-    agent_id: IDL.Text, 
-    payload: IDL.Vec(IDL.Nat8), 
-    submitted_at: IDL.Nat64, 
-    evaluation_score: IDL.Opt(IDL.Float32) 
+  const AgentCreationStatus = IDL.Variant({ 
+    Pending: IDL.Null, 
+    InProgress: IDL.Null, 
+    Completed: IDL.Null, 
+    Failed: IDL.Null 
   });
-  const Bounty = IDL.Record({ 
-    bounty_id: IDL.Text, 
-    spec: BountySpec, 
-    creator: IDL.Text, 
-    escrow_id: IDL.Text, 
-    status: BountyStatus, 
-    created_at: IDL.Nat64, 
-    submissions: IDL.Vec(BountySubmission) 
+
+  const AgentCreationResult = IDL.Record({
+    request_id: IDL.Text,
+    agent_ids: IDL.Vec(IDL.Text),
+    status: AgentCreationStatus,
+    created_at: IDL.Nat64,
+    completed_at: IDL.Opt(IDL.Nat64),
+    error_message: IDL.Opt(IDL.Text),
   });
-  
-  const ResolutionType = IDL.Variant({ WinnerSelected: IDL.Null, NoWinner: IDL.Null, Cancelled: IDL.Null, Expired: IDL.Null });
-  const BountyResolution = IDL.Record({
-    bounty_id: IDL.Text,
-    winner_id: IDL.Opt(IDL.Text),
-    resolution_type: ResolutionType,
-    resolved_at: IDL.Nat64,
-    settlement_details: IDL.Text,
+
+  const AgentSpec = IDL.Record({
+    agent_id: IDL.Text,
+    capabilities: IDL.Vec(IDL.Text),
+    behavior_rules: IDL.Vec(IDL.Text),
+    coordination_network: IDL.Opt(IDL.Text),
+  });
+
+  const InstructionAnalysisResult = IDL.Record({
+    request_id: IDL.Text,
+    estimated_agents: IDL.Nat32,
+    required_capabilities: IDL.Vec(IDL.Text),
+    complexity_score: IDL.Float32,
+    estimated_duration: IDL.Nat64,
+    coordination_needs: IDL.Vec(IDL.Text),
+  });
+
+  const QuotaCheckResult = IDL.Record({
+    allowed: IDL.Bool,
+    remaining_quota: IDL.Opt(IDL.Record({
+      agents_remaining: IDL.Nat32,
+      tokens_remaining: IDL.Nat64,
+      inferences_remaining: IDL.Nat32,
+    })),
+    reason: IDL.Opt(IDL.Text),
+  });
+
+  // OHMS 2.0 Economics Integration Types
+  const UserSubscription = IDL.Record({
+    principal_id: IDL.Text,
+    tier: IDL.Record({
+      name: IDL.Text,
+      monthly_fee_usd: IDL.Nat32,
+      max_agents: IDL.Nat32,
+      monthly_agent_creations: IDL.Nat32,
+      token_limit: IDL.Nat64,
+      inference_rate: IDL.Variant({ Standard: IDL.Null, Priority: IDL.Null, Premium: IDL.Null }),
+      features: IDL.Vec(IDL.Text),
+    }),
+    started_at: IDL.Nat64,
+    expires_at: IDL.Nat64,
+    auto_renew: IDL.Bool,
+    current_usage: IDL.Record({
+      agents_created_this_month: IDL.Nat32,
+      tokens_used_this_month: IDL.Nat64,
+      inferences_this_month: IDL.Nat32,
+      last_reset_date: IDL.Nat64,
+    }),
+    payment_status: IDL.Variant({ Active: IDL.Null, Pending: IDL.Null, Failed: IDL.Null, Cancelled: IDL.Null }),
+    created_at: IDL.Nat64,
+    updated_at: IDL.Nat64,
+  });
+
+  const EconHealth = IDL.Record({
+    total_escrows: IDL.Nat32,
+    active_escrows: IDL.Nat32,
+    total_receipts: IDL.Nat32,
+    pending_settlements: IDL.Nat32,
+    total_volume: IDL.Nat64,
+    protocol_fees_collected: IDL.Nat64,
+    average_job_cost: IDL.Float64,
+  });
+
+  const QuotaValidation = IDL.Record({
+    allowed: IDL.Bool,
+    reason: IDL.Opt(IDL.Text),
+    remaining_quota: IDL.Opt(IDL.Record({
+      agents_remaining: IDL.Nat32,
+      tokens_remaining: IDL.Nat64,
+      inferences_remaining: IDL.Nat32,
+    })),
   });
 
   // Result variants
   const Result_1 = IDL.Variant({ Ok: AgentRegistration, Err: IDL.Text });
   const Result_2 = IDL.Variant({ Ok: RouteResponse, Err: IDL.Text });
-  const Result_3 = IDL.Variant({ Ok: BountyResolution, Err: IDL.Text });
-  const Result_4 = IDL.Variant({ Ok: Bounty, Err: IDL.Text });
   const Result_5 = IDL.Variant({ Ok: IDL.Vec(AgentRegistration), Err: IDL.Text });
-  const Result_6 = IDL.Variant({ Ok: IDL.Vec(Bounty), Err: IDL.Text });
   const Result_7 = IDL.Variant({ Ok: IDL.Vec(RoutingStats), Err: IDL.Text });
+  const Result_InstructionAnalysis = IDL.Variant({ Ok: InstructionAnalysisResult, Err: IDL.Text });
+  const Result_AgentCreation = IDL.Variant({ Ok: AgentCreationResult, Err: IDL.Text });
+  const Result_QuotaCheck = IDL.Variant({ Ok: QuotaCheckResult, Err: IDL.Text });
+  const Result_UserSubscription = IDL.Variant({ Ok: UserSubscription, Err: IDL.Text });
+  const Result_EconHealth = IDL.Variant({ Ok: EconHealth, Err: IDL.Text });
+  const Result_QuotaValidation = IDL.Variant({ Ok: QuotaValidation, Err: IDL.Text });
 
   return IDL.Service({
     // Health & registry - matching actual interface
     health: IDL.Func([], [CoordinatorHealth], ['query']),
-    list_agents: IDL.Func([], [Result_5], ['query']), // Returns Result, not plain Vec
+    list_agents: IDL.Func([], [Result_5], ['query']),
     get_agent: IDL.Func([IDL.Text], [Result_1], ['query']),
     register_agent: IDL.Func([AgentRegistration], [Result], []),
     update_agent_health: IDL.Func([IDL.Text, IDL.Float32], [Result_8], []),
@@ -275,19 +340,42 @@ const coordinatorCanisterIdl = ({ IDL }: any) => {
     route_best_result: IDL.Func([RouteRequest, IDL.Nat32, IDL.Nat64], [Result_2], []),
     get_routing_stats: IDL.Func([IDL.Opt(IDL.Text)], [Result_7], ['query']),
 
-    // Bounties - matching actual interface
-    open_bounty: IDL.Func([BountySpec, IDL.Text], [Result], []),
-    get_bounty: IDL.Func([IDL.Text], [Result_4], ['query']),
-    list_bounties: IDL.Func([], [Result_6], ['query']), // Returns Result, not plain Vec
-    resolve_bounty: IDL.Func([IDL.Text, IDL.Opt(IDL.Text)], [Result_3], []),
-    submit_result: IDL.Func([IDL.Text, IDL.Text, IDL.Vec(IDL.Nat8)], [Result], []),
-    competition_summary: IDL.Func([IDL.Text], [IDL.Record({ 
-      request_id: IDL.Text, 
-      top_k: IDL.Nat32, 
-      window_ms: IDL.Nat64, 
-      winner_id: IDL.Opt(IDL.Text), 
-      scores: IDL.Vec(IDL.Tuple(IDL.Text, IDL.Float32)) 
+    // OHMS 2.0 Agent Spawning APIs
+    create_agents_from_instructions: IDL.Func([IDL.Text, IDL.Opt(IDL.Nat32), IDL.Vec(IDL.Text), IDL.Text], [Result_AgentCreation], []),
+    get_agent_creation_status: IDL.Func([IDL.Text], [Result_AgentCreation], ['query']),
+    get_user_quota_status: IDL.Func([], [Result_QuotaCheck], []),
+    list_user_agents: IDL.Func([], [Result_5], ['query']),
+    list_instruction_requests: IDL.Func([], [IDL.Vec(InstructionRequest)], ['query']),
+    get_instruction_analysis: IDL.Func([IDL.Text], [Result_InstructionAnalysis], ['query']),
+    update_agent_status: IDL.Func([IDL.Text, IDL.Text], [Result_8], []),
+    get_agent_spawning_metrics: IDL.Func([], [IDL.Record({
+      total_creations: IDL.Nat32,
+      successful_creations: IDL.Nat32,
+      failed_creations: IDL.Nat32,
+      average_creation_time_ms: IDL.Float64,
     })], ['query']),
+    get_coordination_networks: IDL.Func([], [IDL.Vec(IDL.Record({
+      network_id: IDL.Text,
+      agent_count: IDL.Nat32,
+      coordination_type: IDL.Text,
+      created_at: IDL.Nat64,
+    }))], ['query']),
+
+    // OHMS 2.0 Subscription Management
+    upgrade_subscription_tier: IDL.Func([IDL.Text], [Result_UserSubscription], []),
+    get_subscription_tier_info: IDL.Func([], [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Record({
+      name: IDL.Text,
+      monthly_fee_usd: IDL.Nat32,
+      max_agents: IDL.Nat32,
+      monthly_agent_creations: IDL.Nat32,
+      token_limit: IDL.Nat64,
+      inference_rate: IDL.Variant({ Standard: IDL.Null, Priority: IDL.Null, Premium: IDL.Null }),
+      features: IDL.Vec(IDL.Text),
+    })))], ['query']),
+
+    // OHMS 2.0 Economics Integration
+    get_economics_health: IDL.Func([], [Result_EconHealth], []),
+    validate_token_usage_quota: IDL.Func([IDL.Nat64], [Result_QuotaValidation], []),
 
     // Swarm policy
     set_swarm_policy: IDL.Func([SwarmPolicy], [Result_8], []),
@@ -494,26 +582,80 @@ export const listAgents = async (agentOverride?: HttpAgent): Promise<any[]> => {
   }
 };
 
-export const listBounties = async (agentOverride?: HttpAgent): Promise<any[]> => {
+// OHMS 2.0 Agent Spawning Functions
+export const createAgentsFromInstructions = async (
+  instructions: string, 
+  agentCount?: number, 
+  capabilities: string[] = [], 
+  priority: string = 'normal'
+): Promise<any> => {
+  return coordinatorCanister.create_agents_from_instructions(instructions, agentCount ? [agentCount] : [], capabilities, priority);
+};
+
+export const getAgentCreationStatus = async (requestId: string): Promise<any> => {
+  return coordinatorCanister.get_agent_creation_status(requestId);
+};
+
+export const getUserQuotaStatus = async (): Promise<any> => {
+  return coordinatorCanister.get_user_quota_status();
+};
+
+export const listUserAgents = async (agentOverride?: HttpAgent): Promise<any[]> => {
   const coordActor = agentOverride ? createCoordinatorActor(agentOverride) : coordinatorCanister;
-  const res = await coordActor.list_bounties() as { Ok?: any[]; Err?: string };
-  // Handle Result type - check if Ok or Err  
+  const res = await coordActor.list_user_agents() as { Ok?: any[]; Err?: string };
   if ('Ok' in res && res.Ok) {
     return res.Ok;
   } else {
-    console.error('Failed to list bounties:', res.Err);
+    console.error('Failed to list user agents:', res.Err);
     throw new Error(res.Err || 'Unknown error');
   }
+};
+
+export const listInstructionRequests = async (): Promise<any[]> => {
+  const result = await coordinatorCanister.list_instruction_requests();
+  return result as any[];
+};
+
+export const getInstructionAnalysis = async (requestId: string): Promise<any> => {
+  return coordinatorCanister.get_instruction_analysis(requestId);
+};
+
+export const updateAgentStatus = async (agentId: string, status: string): Promise<any> => {
+  return coordinatorCanister.update_agent_status(agentId, status);
+};
+
+export const getAgentSpawningMetrics = async (): Promise<any> => {
+  return coordinatorCanister.get_agent_spawning_metrics();
+};
+
+export const getCoordinationNetworks = async (): Promise<any[]> => {
+  const result = await coordinatorCanister.get_coordination_networks();
+  return result as any[];
+};
+
+// OHMS 2.0 Subscription Management Functions
+export const upgradeSubscriptionTier = async (tierName: string): Promise<any> => {
+  return coordinatorCanister.upgrade_subscription_tier(tierName);
+};
+
+export const getSubscriptionTierInfo = async (): Promise<any[]> => {
+  const result = await coordinatorCanister.get_subscription_tier_info();
+  return result as any[];
+};
+
+// OHMS 2.0 Economics Integration Functions
+export const getEconomicsHealth = async (): Promise<any> => {
+  return coordinatorCanister.get_economics_health();
+};
+
+export const validateTokenUsageQuota = async (tokens: bigint): Promise<any> => {
+  return coordinatorCanister.validate_token_usage_quota(tokens);
 };
 
 export const listModels = async (state?: any, agentOverride?: HttpAgent): Promise<any[]> => {
   const modelActor = agentOverride ? createModelActor(agentOverride) : modelCanister;
   const res = await modelActor.list_models(state ? [state] : []);
   return res as any[];
-};
-
-export const openBounty = async (spec: any, escrowId: string): Promise<any> => {
-  return coordinatorCanister.open_bounty(spec, escrowId);
 };
 
 // Dynamic actor creators (useful to attach a specific agent/identity)

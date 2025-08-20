@@ -8,6 +8,9 @@ import {
   createAgentActor,
   createCoordinatorActor,
   createEconActor,
+  listUserAgents,
+  getUserQuotaStatus,
+  createAgentsFromInstructions,
 } from '../services/canisterService'
 
 type AgentCreationRequest = {
@@ -71,15 +74,16 @@ const UserAgentCreator = () => {
       const econActor = createEconActor(agent as any)
       
       // Load user subscription and usage
-      const [sub, agents, models] = await Promise.all([
+      const [sub, agents, quota] = await Promise.all([
         econActor.get_user_subscription(principal || ''),
-        coordinatorActor.get_user_agents(principal || ''),
-        coordinatorActor.get_available_models(),
+        listUserAgents(agent as any),
+        getUserQuotaStatus(),
       ])
 
       setSubscription(sub as UserSubscription)
       setCreatedAgents(agents as AgentCreationResult[])
-      setAvailableModels(models as string[])
+      // For now, we'll use a placeholder for available models
+      setAvailableModels(['llama-3.1-8b', 'llama-3.1-70b', 'mistral-7b'])
 
     } catch (e: any) {
       console.error(e)
@@ -120,13 +124,13 @@ const UserAgentCreator = () => {
         await new Promise(resolve => setTimeout(resolve, 800))
       }
 
-      // Create the agent
-      const result = await agentActor.create_agent_from_instruction({
-        instruction: creationRequest.instruction,
-        agent_count: creationRequest.agent_count,
-        capabilities: creationRequest.capabilities,
-        priority: creationRequest.priority,
-      })
+      // Create the agent using the new OHMS 2.0 service
+      const result = await createAgentsFromInstructions(
+        creationRequest.instruction,
+        creationRequest.agent_count,
+        creationRequest.capabilities,
+        creationRequest.priority
+      )
 
       setCreationProgress(100)
       
@@ -384,10 +388,10 @@ const UserAgentCreator = () => {
                       </p>
                       <div className="flex flex-wrap gap-1 mt-2">
                         {agent.capabilities.slice(0, 2).map((cap) => (
-                          <Badge key={cap} variant="outline" size="xs">{cap}</Badge>
+                          <Badge key={cap} variant="default" size="sm">{cap}</Badge>
                         ))}
                         {agent.capabilities.length > 2 && (
-                          <Badge variant="outline" size="xs">+{agent.capabilities.length - 2}</Badge>
+                          <Badge variant="default" size="sm">+{agent.capabilities.length - 2}</Badge>
                         )}
                       </div>
                     </div>

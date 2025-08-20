@@ -222,16 +222,100 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     }
   }, [principal])
 
+  // Helper function to wait for identity to be available
+  const waitForIdentity = async (maxAttempts: number = 10, delayMs: number = 500): Promise<Identity | null> => {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      if (identity) {
+        try {
+          const principal = await identity.getPrincipal()
+          if (principal) {
+            return identity
+          }
+        } catch (error) {
+          console.warn(`Identity check attempt ${attempt + 1} failed:`, error)
+        }
+      }
+      
+      if (attempt < maxAttempts - 1) {
+        await new Promise(resolve => setTimeout(resolve, delayMs))
+      }
+    }
+    return null
+  }
+
+  // Check if OISY wallet is available before attempting connection
+  const checkOisyAvailability = async (): Promise<boolean> => {
+    try {
+      const { detectOisyWallet, checkOisyWithDiagnostics } = await import('../utils/oisyDetection')
+      
+      const diagnostics = await checkOisyWithDiagnostics()
+      const { detection, browserInfo, recommendations } = diagnostics
+      
+      console.log('🔍 OISY Detection Results:', {
+        installed: detection.isInstalled,
+        open: detection.isOpen,
+        available: detection.isAvailable,
+        version: detection.version,
+        cookiesEnabled: browserInfo.cookiesEnabled,
+        storageAvailable: browserInfo.storageAvailable
+      })
+      
+      if (recommendations.length > 0) {
+        console.log('💡 OISY Setup Recommendations:', recommendations)
+      }
+      
+      // Return true only if OISY is fully available
+      return detection.isAvailable
+    } catch (error) {
+      console.warn('OISY availability check failed:', error)
+      return false
+    }
+  }
+
   // Connect wallet (Oisy via IdentityKit)
   const connect = async (): Promise<boolean> => {
     setIsConnecting(true)
     setConnectionError(null) // Clear any previous errors
     
     try {
-      await idkitConnect('OISY')
-      // wait for identity to populate this tick
-      const principalRaw = await identity?.getPrincipal()
-      if (!principalRaw) throw new Error('Failed to obtain principal from Oisy')
+      // First check if OISY is available with detailed diagnostics
+      console.log('🔍 Checking OISY wallet availability...')
+      const oisyAvailable = await checkOisyAvailability()
+      
+      if (!oisyAvailable) {
+        // Get detailed diagnostics for better error message
+        const { checkOisyWithDiagnostics } = await import('../utils/oisyDetection')
+        const diagnostics = await checkOisyWithDiagnostics()
+        
+        const errorMsg = diagnostics.detection.error || 'OISY wallet not available'
+        const instructions = diagnostics.recommendations.join('\n')
+        
+        throw new Error(`${errorMsg}\n\nSetup Instructions:\n${instructions}`)
+      }
+
+      console.log('🔗 OISY wallet detected, attempting connection...')
+      
+      // Reduce timeout since we've validated OISY is available
+      const connectionPromise = idkitConnect('OISY')
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Connection timeout - please approve the connection in OISY wallet')), 15000)
+      })
+      
+      await Promise.race([connectionPromise, timeoutPromise])
+      console.log('📡 IdentityKit connection established, waiting for identity...')
+      
+      // Wait for identity to be properly initialized with more attempts
+      const readyIdentity = await waitForIdentity(20, 500)
+      if (!readyIdentity) {
+        throw new Error('Failed to initialize Oisy identity - please ensure OISY wallet is open and try again')
+      }
+      
+      console.log('🔐 Identity ready, obtaining principal...')
+      const principalRaw = await readyIdentity.getPrincipal()
+      if (!principalRaw) {
+        throw new Error('Failed to obtain principal from Oisy wallet - connection may have been rejected')
+      }
+      
       const principalStr = principalRaw.toText()
       const profile = await extractUserProfile(null, principalStr)
       setPrincipal(principalStr)
@@ -254,6 +338,17 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       console.error('❌ Failed to connect to wallet:', friendlyMessage)
       console.error('💡 Browser guidance:', getBrowserGuidance())
       
+      // Provide more specific error guidance
+      if (error instanceof Error) {
+        if (error.message.includes('timeout')) {
+          console.error('🕐 Connection timed out. Please ensure OISY wallet is open and try again.')
+        } else if (error.message.includes('not detected')) {
+          console.error('🔌 OISY wallet not found. Install from https://oisy.com')
+        } else if (error.message.includes('rejected')) {
+          console.error('🚫 Connection was rejected. Please approve the connection in OISY wallet.')
+        }
+      }
+      
       setIsConnected(false)
       setConnectionError(walletError)
       throw walletError
@@ -270,13 +365,24 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         await connect()
       }
 
-      // IdentityKit exposes a compatible Agent wrapper
       if (!idkitAgent) throw new Error('Wallet agent unavailable')
+      if (!identity) throw new Error('Identity not available')
+
+      // Create compatible agent adapter instead of unsafe casting
+      const { createAgentAdapter } = await import('../services/agentAdapter')
+      const adapter = createAgentAdapter(idkitAgent, identity, HOST, undefined)
+      
       // Ensure correct host for local dev
       if (NETWORK !== 'ic') {
-        await idkitAgent.fetchRootKey()
+        await adapter.fetchRootKey()
       }
-      return idkitAgent as unknown as HttpAgent
+
+      // Validate adapter is ready before returning
+      if (!adapter.isReady()) {
+        throw new Error('Agent adapter is not ready - check wallet connection')
+      }
+
+      return adapter
     } catch (error) {
       console.error('Failed to create authenticated agent:', error)
       throw error

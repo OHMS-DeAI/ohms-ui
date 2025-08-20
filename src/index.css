@@ -28,6 +28,16 @@ body {
   position: relative;
 }
 
+/* Fix for aria-hidden accessibility issue */
+#root[aria-hidden="true"] {
+  aria-hidden: false !important;
+}
+
+/* Ensure focusable elements are always accessible */
+#root:focus-within {
+  aria-hidden: false !important;
+}
+
 /* Glass Morphism Effects */
 .glass-morph {
   background: rgba(11, 21, 55, 0.25);

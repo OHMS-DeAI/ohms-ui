@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Navigate } from 'react-router-dom'
 import { useAgent } from '../context/AgentContext'
 import LoadingSpinner from './LoadingSpinner'
 import Card from './Card'
@@ -11,26 +10,23 @@ interface AdminRouteProps {
 const AdminRoute = ({ children }: AdminRouteProps) => {
   const { isWalletAvailable, createAuthAgent, isAdmin: hasAdminRole, checkAdminStatus } = useAgent()
   const [isAdmin, setIsAdmin] = useState(false)
-  const [authChecked, setAuthChecked] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const verifyAdminAccess = async () => {
       if (!isWalletAvailable) {
-        setAuthChecked(true)
+
         setLoading(false)
         return
       }
       
       try {
-        const agent = await createAuthAgent()
+        await createAuthAgent()
         const admin = await checkAdminStatus()
         setIsAdmin(admin || hasAdminRole)
-        setAuthChecked(true)
       } catch (error) {
         console.error('Failed to check admin status:', error)
         setIsAdmin(false)
-        setAuthChecked(true)
       } finally {
         setLoading(false)
       }
