@@ -1,7 +1,7 @@
 import LoadingSpinner from './LoadingSpinner'
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost'
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'purple'
   size?: 'xs' | 'sm' | 'md' | 'lg'
   loading?: boolean
   fullWidth?: boolean
@@ -24,14 +24,15 @@ const Button = ({
     primary: 'btn-primary',
     secondary: 'bg-primary/60 text-text-on-dark border border-accent-gold/20 hover:bg-accent-gold/20',
     outline: 'btn-outline',
-    ghost: 'btn-ghost'
+    ghost: 'btn-ghost',
+    purple: 'btn-purple'
   }
 
   const sizeClasses = {
-    xs: 'px-2 py-1 text-xs',
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-base',
-    lg: 'px-6 py-3 text-lg'
+    xs: 'min-h-[44px] px-4 py-3 text-sm',  // 44px min height for touch
+    sm: 'min-h-[44px] px-6 py-3 text-base', // 44px min height for touch
+    md: 'min-h-[48px] px-8 py-4 text-lg',  // Larger for primary actions
+    lg: 'min-h-[56px] px-10 py-5 text-xl'  // Extra large for hero CTAs
   }
 
   const widthClasses = fullWidth ? 'w-full' : ''

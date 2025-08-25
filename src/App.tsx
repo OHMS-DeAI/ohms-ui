@@ -1,4 +1,4 @@
-// import React from 'react'
+import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import ParticleBackground from './components/ParticleBackground'
 import Header from './components/Header'
@@ -18,21 +18,23 @@ import AgentCreator from './pages/AgentCreator'
 import UserAgentCreator from './pages/UserAgentCreator'
 import PerformanceDashboard from './pages/PerformanceDashboard'
 import NOVAQDashboard from './pages/NOVAQDashboard'
+import GoogleCallback from './pages/GoogleCallback'
+import ModelChat from './pages/ModelChat'
+import Coordinator from './pages/Coordinator'
 import { AgentProvider } from './context/AgentContext'
-import { IdentityKitProvider, IdentityKitTheme } from '@nfid/identitykit/react'
-import { OISY } from '@nfid/identitykit'
-import '@nfid/identitykit/react/styles.css'
 
-// Import admin test utility for development
+// Development-only imports
+let AuthTestComponent: React.LazyExoticComponent<React.ComponentType<any>> | null = null
 if (import.meta.env.DEV) {
   import('./utils/adminTest')
+  // Dynamically import auth test component for development
+  AuthTestComponent = React.lazy(() => import('./components/AuthTestComponent'))
 }
 
 function App() {
   return (
-    <IdentityKitProvider signers={[OISY]} authType="ACCOUNTS" theme={IdentityKitTheme.DARK}>
-      <AgentProvider>
-        <Router>
+    <AgentProvider>
+      <Router>
           <div className="min-h-screen bg-primary text-text-on-dark relative overflow-hidden" role="main">
             <ParticleBackground />
             <div className="relative z-10">
@@ -56,6 +58,16 @@ function App() {
                   <Route path="/models" element={
                     <ProtectedRoute>
                       <ModelCatalog />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/chat" element={
+                    <ProtectedRoute>
+                      <ModelChat />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/coordinator" element={
+                    <ProtectedRoute>
+                      <Coordinator />
                     </ProtectedRoute>
                   } />
                   <Route path="/agents" element={
@@ -111,6 +123,18 @@ function App() {
                     </AdminRoute>
                   } />
                   
+                  {/* Google OAuth Callback - No authentication required */}
+                  <Route path="/auth/google/callback" element={<GoogleCallback />} />
+                  
+                  {/* Development-only auth test route */}
+                  {import.meta.env.DEV && AuthTestComponent && (
+                    <Route path="/auth-test" element={
+                      <React.Suspense fallback={<div className="text-center py-8">Loading...</div>}>
+                        <AuthTestComponent />
+                      </React.Suspense>
+                    } />
+                  )}
+                  
                   {/* Fallback redirect */}
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
@@ -119,7 +143,6 @@ function App() {
           </div>
         </Router>
       </AgentProvider>
-    </IdentityKitProvider>
   )
 }
 

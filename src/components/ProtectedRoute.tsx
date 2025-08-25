@@ -30,7 +30,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <LoadingSpinner size="lg" />
-          <p className="text-textOnDark/70 mt-4">Connecting to wallet...</p>
+          <p className="text-textOnDark/70 mt-4">Authenticating with Internet Identity v2...</p>
         </div>
       </div>
     )
@@ -57,7 +57,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         <AuthModal 
           isOpen={showAuthModal} 
           onClose={handleModalClose}
-          redirectMessage={`Connect your Oisy wallet to access ${getPageName(location.pathname)}.`}
+          redirectMessage={`Authenticate with Internet Identity v2 to access ${getPageName(location.pathname)}.`}
         />
         
         {/* Show a placeholder while modal is open */}

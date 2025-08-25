@@ -181,7 +181,7 @@ const Admin = () => {
       <div className="max-w-6xl mx-auto">
         <Card className="text-center py-12">
           <h1 className="text-3xl font-bold text-accentGold mb-4">Admin</h1>
-          <p className="text-textOnDark/70 mb-4">Oisy wallet not available. Please open Oisy wallet.</p>
+          <p className="text-textOnDark/70 mb-4">Internet Identity v2 authentication required. Please authenticate to access admin features.</p>
         </Card>
       </div>
     )

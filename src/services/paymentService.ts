@@ -360,7 +360,7 @@ export class PaymentService {
 Amount: $${paymentRequest.amount_usd} USD (≈ ${icpAmount.toFixed(4)} ICP)
 Tier: ${paymentRequest.subscription_tier.charAt(0).toUpperCase() + paymentRequest.subscription_tier.slice(1)}
 
-This will be charged to your OISY wallet.`
+This will be charged via Stripe payment processing.`
 
     return window.confirm(message)
   }

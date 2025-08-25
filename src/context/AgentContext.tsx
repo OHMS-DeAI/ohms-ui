@@ -9,8 +9,9 @@ import {
   classifyWalletError,
   type WalletError
 } from '../utils/walletErrorHandler'
-import { useAuth, useAgent as useIdentityKitAgent, useIdentity } from '@nfid/identitykit/react'
 import { Principal } from '@dfinity/principal'
+import { internetIdentityService, type IIv2User, type GoogleAccountInfo } from '../services/internetIdentityService'
+import { llmService, type LlmState, type QuantizedModel, type ConversationSession } from '../services/llmService'
 
 // Define types for our canisters
 export interface CanisterIds {
@@ -24,6 +25,11 @@ interface UserProfile {
   name?: string
   accountId?: string
   principal: string
+  email?: string // For Google account integration
+  picture?: string // For Google profile picture
+  googleId?: string // For Google account ID
+  googleAccount?: GoogleAccountInfo // Full Google account info for Stripe
+  isAnonymous?: boolean // From II v2
 }
 
 interface AgentContextType {
@@ -43,6 +49,12 @@ interface AgentContextType {
   adminData: AdminData | null
   refreshAdminData: () => Promise<void>
   clearConnectionError: () => void
+  // LLM functionality
+  llmState: LlmState
+  createLlmConversation: (model: QuantizedModel) => Promise<ConversationSession>
+  sendLlmMessage: (message: string) => Promise<void>
+  switchLlmModel: (model: QuantizedModel) => Promise<void>
+  deleteLlmConversation: (sessionId: string) => Promise<void>
 }
 
 interface AdminData {
@@ -83,107 +95,51 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState(false)
   const [adminData, setAdminData] = useState<AdminData | null>(null)
 
-  // IdentityKit hooks
-  const { connect: idkitConnect, disconnect: idkitDisconnect } = useAuth()
-  const identity: Identity | undefined = useIdentity()
-  const idkitAgent = useIdentityKitAgent({ host: HOST })
-
-  // No wallet polling needed with IdentityKit; maintain minimal cache
-  const [connectionCache, setConnectionCache] = useState<{
-    status: boolean | null
-    timestamp: number
-  }>({ status: null, timestamp: 0 })
-
-  const CACHE_DURATION = 1000
+  // LLM state
+  const [llmState, setLlmState] = useState<LlmState>({
+    conversations: new Map(),
+    currentConversation: null,
+    availableModels: [],
+    userQuota: null,
+    isLoading: false,
+    error: null,
+  })
 
   // Local storage keys
   const STORAGE_KEYS = {
-    WAS_CONNECTED: 'ohms_plug_was_connected',
+    WAS_CONNECTED: 'ohms_was_connected',
     PRINCIPAL: 'ohms_principal',
     USER_PROFILE: 'ohms_user_profile',
     LAST_CONNECTION: 'ohms_last_connection'
   }
   
-  // Extract user profile from signer/identity
-  const extractUserProfile = async (_unused: unknown, principalStr: string): Promise<UserProfile> => {
-    try {
-      if (NETWORK === 'ic') {
-        return {
-          principal: principalStr,
-          name: `User ${principalStr.slice(0, 8)}...`,
-        }
-      }
-      const profile: UserProfile = { principal: principalStr, name: `User ${principalStr.slice(0, 8)}...` }
-      return profile
-    } catch (error) {
-      console.warn('Could not extract full user profile:', error)
-      return {
-        principal: principalStr,
-        name: `User ${principalStr.slice(0, 8)}...`
-      }
-    }
-  }
-
-  // Cached connection status checker
-  const checkConnectionCached = async (): Promise<boolean> => {
-    const now = Date.now()
-    
-    // Return cached result if still valid
-    if (connectionCache.status !== null && (now - connectionCache.timestamp) < CACHE_DURATION) {
-      return connectionCache.status
-    }
-
-    try {
-      const connected = Boolean(identity && (await identity.getPrincipal?.()))
-      
-      // Update cache
-      setConnectionCache({
-        status: connected,
-        timestamp: now
-      })
-      
-      // Clear connection error on successful check
-      if (connected) {
-        setConnectionError(null)
-      }
-      
-      return connected
-    } catch (error) {
-      const walletError = classifyWalletError(error)
-      
-      // Don't log or set connection errors for extension errors that don't affect the app
-      if (walletError.type === 'EXTENSION_ERROR' && !walletError.affectsApp) {
-        // Silently ignore extension internal errors
-        return false
-      }
-      
-      console.warn('⚠️ Cached connection check failed:', getUserFriendlyErrorMessage(walletError))
-      
-      // Only set connection error for errors that affect the app
-      if (walletError.affectsApp !== false && walletError.type !== 'UNKNOWN') {
-        setConnectionError(walletError)
-      }
-      
-      return false
-    }
-  }
-  
-  // Initialize wallet availability (IdentityKit)
+  // Initialize Internet Identity v2
   useEffect(() => {
-    setIsWalletAvailable(true)
-    // Attempt to derive state from IdentityKit
-    ;(async () => {
+    const initializeII = async () => {
       try {
-        if (identity) {
-          const p = await identity.getPrincipal()
-          const principalStr = p.toText()
-          setPrincipal(principalStr)
-          setIsConnected(true)
-          const profile = await extractUserProfile(null, principalStr)
-          setUserProfile(profile)
+        console.log('🔄 Initializing Internet Identity v2 integration...')
+        const initialized = await internetIdentityService.initialize()
+        setIsWalletAvailable(true)
+        
+        if (initialized) {
+          // Restore existing session
+          const authStatus = await internetIdentityService.getAuthStatus()
+          if (authStatus.isAuthenticated && authStatus.user) {
+            const userProfile = convertIIUserToProfile(authStatus.user)
+            setPrincipal(authStatus.principal!)
+            setUserProfile(userProfile)
+            setIsConnected(true)
+            storeConnection(authStatus.principal!, userProfile)
+            console.log('✅ Restored II v2 session for:', authStatus.principal)
+          }
         }
-      } catch (_) {}
-    })()
+      } catch (error) {
+        console.error('❌ Failed to initialize II v2:', error)
+        setIsWalletAvailable(false)
+      }
+    }
+    
+    initializeII()
   }, [])
   
   const clearStoredConnection = () => {
@@ -199,8 +155,19 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profile))
     localStorage.setItem(STORAGE_KEYS.LAST_CONNECTION, Date.now().toString())
   }
-  
-  // Removed Plug-specific reconnection
+
+  // Convert II v2 user to UserProfile
+  const convertIIUserToProfile = (iiUser: IIv2User): UserProfile => {
+    return {
+      principal: iiUser.principal,
+      name: iiUser.name,
+      email: iiUser.email,
+      picture: iiUser.picture,
+      googleId: iiUser.googleAccount?.googleId,
+      googleAccount: iiUser.googleAccount,
+      isAnonymous: iiUser.isAnonymous
+    }
+  }
   
   // Check admin status when principal changes
   useEffect(() => {
@@ -222,133 +189,48 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     }
   }, [principal])
 
-  // Helper function to wait for identity to be available
-  const waitForIdentity = async (maxAttempts: number = 10, delayMs: number = 500): Promise<Identity | null> => {
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      if (identity) {
-        try {
-          const principal = await identity.getPrincipal()
-          if (principal) {
-            return identity
-          }
-        } catch (error) {
-          console.warn(`Identity check attempt ${attempt + 1} failed:`, error)
-        }
-      }
-      
-      if (attempt < maxAttempts - 1) {
-        await new Promise(resolve => setTimeout(resolve, delayMs))
-      }
-    }
-    return null
-  }
-
-  // Check if OISY wallet is available before attempting connection
-  const checkOisyAvailability = async (): Promise<boolean> => {
-    try {
-      const { detectOisyWallet, checkOisyWithDiagnostics } = await import('../utils/oisyDetection')
-      
-      const diagnostics = await checkOisyWithDiagnostics()
-      const { detection, browserInfo, recommendations } = diagnostics
-      
-      console.log('🔍 OISY Detection Results:', {
-        installed: detection.isInstalled,
-        open: detection.isOpen,
-        available: detection.isAvailable,
-        version: detection.version,
-        cookiesEnabled: browserInfo.cookiesEnabled,
-        storageAvailable: browserInfo.storageAvailable
-      })
-      
-      if (recommendations.length > 0) {
-        console.log('💡 OISY Setup Recommendations:', recommendations)
-      }
-      
-      // Return true only if OISY is fully available
-      return detection.isAvailable
-    } catch (error) {
-      console.warn('OISY availability check failed:', error)
-      return false
-    }
-  }
-
-  // Connect wallet (Oisy via IdentityKit)
+  // Internet Identity v2 authentication
   const connect = async (): Promise<boolean> => {
     setIsConnecting(true)
-    setConnectionError(null) // Clear any previous errors
+    setConnectionError(null)
     
     try {
-      // First check if OISY is available with detailed diagnostics
-      console.log('🔍 Checking OISY wallet availability...')
-      const oisyAvailable = await checkOisyAvailability()
+      console.log('🔗 Starting Internet Identity v2 authentication...')
       
-      if (!oisyAvailable) {
-        // Get detailed diagnostics for better error message
-        const { checkOisyWithDiagnostics } = await import('../utils/oisyDetection')
-        const diagnostics = await checkOisyWithDiagnostics()
-        
-        const errorMsg = diagnostics.detection.error || 'OISY wallet not available'
-        const instructions = diagnostics.recommendations.join('\n')
-        
-        throw new Error(`${errorMsg}\n\nSetup Instructions:\n${instructions}`)
+      // Authenticate with II v2
+      const authResult = await internetIdentityService.authenticate(true) // Prefer Google
+      
+      if (!authResult.success) {
+        throw new Error(authResult.error || 'Authentication failed')
       }
 
-      console.log('🔗 OISY wallet detected, attempting connection...')
-      
-      // Reduce timeout since we've validated OISY is available
-      const connectionPromise = idkitConnect('OISY')
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Connection timeout - please approve the connection in OISY wallet')), 15000)
-      })
-      
-      await Promise.race([connectionPromise, timeoutPromise])
-      console.log('📡 IdentityKit connection established, waiting for identity...')
-      
-      // Wait for identity to be properly initialized with more attempts
-      const readyIdentity = await waitForIdentity(20, 500)
-      if (!readyIdentity) {
-        throw new Error('Failed to initialize Oisy identity - please ensure OISY wallet is open and try again')
+      if (!authResult.user) {
+        throw new Error('No user profile returned from authentication')
       }
-      
-      console.log('🔐 Identity ready, obtaining principal...')
-      const principalRaw = await readyIdentity.getPrincipal()
-      if (!principalRaw) {
-        throw new Error('Failed to obtain principal from Oisy wallet - connection may have been rejected')
-      }
-      
-      const principalStr = principalRaw.toText()
-      const profile = await extractUserProfile(null, principalStr)
-      setPrincipal(principalStr)
-      setUserProfile(profile)
+
+      // Convert II user to UserProfile and update state
+      const userProfile = convertIIUserToProfile(authResult.user)
+      const principalString = authResult.user.principal
+
+      setPrincipal(principalString)
+      setUserProfile(userProfile)
       setIsConnected(true)
       setConnectionError(null)
-      storeConnection(principalStr, profile)
-      console.log('✅ Connected to Oisy wallet:', principalStr)
-      
-      // Log browser-specific guidance if we detected issues earlier
-      if (isBraveBrowser()) {
-        console.log('💡 Brave Browser guidance:', getBrowserGuidance())
-      }
+      storeConnection(principalString, userProfile)
+
+      console.log('✅ II v2 authentication successful:', {
+        principal: principalString,
+        name: userProfile.name,
+        hasGoogleAccount: !!userProfile.googleAccount,
+        email: userProfile.email
+      })
       
       return true
     } catch (error) {
       const walletError = classifyWalletError(error)
       const friendlyMessage = getUserFriendlyErrorMessage(walletError)
       
-      console.error('❌ Failed to connect to wallet:', friendlyMessage)
-      console.error('💡 Browser guidance:', getBrowserGuidance())
-      
-      // Provide more specific error guidance
-      if (error instanceof Error) {
-        if (error.message.includes('timeout')) {
-          console.error('🕐 Connection timed out. Please ensure OISY wallet is open and try again.')
-        } else if (error.message.includes('not detected')) {
-          console.error('🔌 OISY wallet not found. Install from https://oisy.com')
-        } else if (error.message.includes('rejected')) {
-          console.error('🚫 Connection was rejected. Please approve the connection in OISY wallet.')
-        }
-      }
-      
+      console.error('❌ II v2 authentication failed:', friendlyMessage)
       setIsConnected(false)
       setConnectionError(walletError)
       throw walletError
@@ -357,88 +239,153 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     }
   }
   
-  // Create authenticated agent from IdentityKit when needed
+  // Create authenticated agent with II v2
   const createAuthAgent = async (): Promise<HttpAgent | null> => {
     try {
       if (!isConnected) {
         // Try to connect first
-        await connect()
+        const connected = await connect()
+        if (!connected) {
+          throw new Error('Failed to establish II v2 connection')
+        }
       }
 
-      if (!idkitAgent) throw new Error('Wallet agent unavailable')
-      if (!identity) throw new Error('Identity not available')
+      // Get agent from II v2 service
+      const agent = internetIdentityService.createAgent()
+      if (!agent) {
+        throw new Error('Failed to create authenticated agent - no identity available')
+      }
 
-      // Create compatible agent adapter instead of unsafe casting
-      const { createAgentAdapter } = await import('../services/agentAdapter')
-      const adapter = createAgentAdapter(idkitAgent, identity, HOST, undefined)
-      
-      // Ensure correct host for local dev
+      // For local development, fetch root key
       if (NETWORK !== 'ic') {
-        await adapter.fetchRootKey()
+        await agent.fetchRootKey()
       }
 
-      // Validate adapter is ready before returning
-      if (!adapter.isReady()) {
-        throw new Error('Agent adapter is not ready - check wallet connection')
-      }
-
-      return adapter
+      console.log('✅ Created authenticated agent for:', principal)
+      return agent
     } catch (error) {
-      console.error('Failed to create authenticated agent:', error)
+      console.error('❌ Failed to create authenticated agent:', error)
       throw error
     }
   }
 
-  // Get principal without creating full agent
+  // Get principal from II v2
   const getPrincipal = async (): Promise<string | null> => {
     try {
-      const connected = await checkConnectionCached()
-      if (!connected) return null
-      
-      const p = await identity?.getPrincipal()
-      const principalStr = p ? Principal.from(p).toText() : null
-      setPrincipal(principalStr)
-      return principalStr
+      const authStatus = await internetIdentityService.getAuthStatus()
+      if (authStatus.isAuthenticated && authStatus.principal) {
+        setPrincipal(authStatus.principal)
+        return authStatus.principal
+      }
+      return null
     } catch (error) {
       const walletError = classifyWalletError(error)
-      
-      // Don't log or set errors for extension issues that don't affect the app
-      if (walletError.type === 'EXTENSION_ERROR' && !walletError.affectsApp) {
-        // Silently fail for extension internal errors
-        return null
-      }
-      
       console.error('Failed to get principal:', getUserFriendlyErrorMessage(walletError))
-      
-      // Only set connection error for errors that affect the app
-      if (walletError.affectsApp !== false) {
-        setConnectionError(walletError)
-      }
+      setConnectionError(walletError)
       return null
     }
   }
 
-  const disconnect = () => {
+  const disconnect = async () => {
+    try {
+      // Sign out from II v2 service
+      await internetIdentityService.signOut()
+    } catch (error) {
+      console.warn('⚠️ Error signing out from II v2:', error)
+    }
+    
     setPrincipal(null)
     setUserProfile(null)
     setIsConnected(false)
     setIsAdmin(false)
     setAdminData(null)
-    setConnectionError(null) // Clear connection errors
+    setConnectionError(null)
     clearStoredConnection()
     
-    // Also disconnect from wallet if connected
-    try {
-      idkitDisconnect()
-    } catch (error) {
-      console.warn('Error disconnecting from wallet:', error)
-    }
-    
-    console.log('🚪 Disconnected from wallet')
+    console.log('🚪 Disconnected from Internet Identity v2')
   }
 
   const clearConnectionError = () => {
     setConnectionError(null)
+  }
+
+  // LLM methods
+  const createLlmConversation = async (model: QuantizedModel): Promise<ConversationSession> => {
+    try {
+      const conversation = await llmService.createConversation(model)
+      setLlmState(prev => ({
+        ...prev,
+        conversations: new Map(prev.conversations).set(conversation.session_id, conversation),
+        currentConversation: conversation,
+      }))
+      return conversation
+    } catch (error) {
+      console.error('Failed to create LLM conversation:', error)
+      throw error
+    }
+  }
+
+  const sendLlmMessage = async (message: string): Promise<void> => {
+    try {
+      setLlmState(prev => ({ ...prev, isLoading: true, error: null }))
+
+      await llmService.sendMessage(message)
+
+      // Update local state with new messages
+      const currentState = llmService.getState()
+      setLlmState(prev => ({
+        ...prev,
+        conversations: currentState.conversations,
+        currentConversation: currentState.currentConversation,
+        isLoading: false,
+      }))
+    } catch (error) {
+      console.error('Failed to send LLM message:', error)
+      setLlmState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: { error: 'InternalError', message: error.message }
+      }))
+      throw error
+    }
+  }
+
+  const switchLlmModel = async (model: QuantizedModel): Promise<void> => {
+    try {
+      if (llmState.currentConversation) {
+        await llmService.switchModel(model)
+        setLlmState(prev => ({
+          ...prev,
+          currentConversation: prev.currentConversation ? {
+            ...prev.currentConversation,
+            model
+          } : null,
+        }))
+      }
+    } catch (error) {
+      console.error('Failed to switch LLM model:', error)
+      throw error
+    }
+  }
+
+  const deleteLlmConversation = async (sessionId: string): Promise<void> => {
+    try {
+      await llmService.deleteConversation(sessionId)
+      setLlmState(prev => {
+        const newConversations = new Map(prev.conversations)
+        newConversations.delete(sessionId)
+        return {
+          ...prev,
+          conversations: newConversations,
+          currentConversation: prev.currentConversation?.session_id === sessionId
+            ? null
+            : prev.currentConversation,
+        }
+      })
+    } catch (error) {
+      console.error('Failed to delete LLM conversation:', error)
+      throw error
+    }
   }
 
   const checkAdminStatus = async (): Promise<boolean> => {
@@ -481,9 +428,13 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     if (!isAdmin) return
     
     try {
+      console.log('🔄 Refreshing admin data with II v2 agent...')
       const { createModelActor, createAgentActor, createCoordinatorActor, createEconActor } = await import('../services/canisterService')
       const authAgent = await createAuthAgent()
-      if (!authAgent) return
+      if (!authAgent) {
+        console.warn('⚠️ No authenticated agent available for admin data refresh')
+        return
+      }
       
       const modelActor = createModelActor(authAgent)
       const agentActor = createAgentActor(authAgent as any)
@@ -517,8 +468,10 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         routingHealth: coordinatorHealth,
         econHealth
       })
+
+      console.log('✅ Admin data refreshed successfully')
     } catch (error) {
-      console.error('Failed to refresh admin data:', error)
+      console.error('❌ Failed to refresh admin data:', error)
     }
   }
 
@@ -541,6 +494,12 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         adminData,
         refreshAdminData,
         clearConnectionError,
+        // LLM functionality
+        llmState,
+        createLlmConversation,
+        sendLlmMessage,
+        switchLlmModel,
+        deleteLlmConversation,
       }}
     >
       {children}

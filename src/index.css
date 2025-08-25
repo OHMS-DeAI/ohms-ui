@@ -1,11 +1,36 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #0B1537;
-  --color-accent-gold: #F5C542;
-  --color-primary-80: rgba(11, 21, 55, 0.8);
-  --color-gold-20: rgba(245, 197, 66, 0.2);
-  --color-text-on-dark: #E6E8F0;
+  /* Primary Brand Colors - Modern Tech Palette */
+  --color-primary: #0F1419;          /* Deep charcoal - main background */
+  --color-primary-light: #1A1F26;    /* Lighter charcoal for surfaces */
+  --color-primary-dark: #0A0E12;     /* Darker charcoal for depth */
+
+  /* Secondary Colors - Professional Blues */
+  --color-secondary: #2563EB;        /* Modern blue for primary actions */
+  --color-secondary-light: #3B82F6;  /* Lighter blue for hovers */
+  --color-secondary-dark: #1D4ED8;   /* Darker blue for pressed states */
+
+  /* Accent Colors - Tech-inspired palette */
+  --color-accent: #6366F1;           /* Indigo for secondary accents */
+  --color-accent-light: #8B5CF6;     /* Purple for highlights */
+  --color-accent-success: #10B981;   /* Emerald for success states */
+  --color-accent-warning: #F59E0B;   /* Amber for warnings */
+  --color-accent-error: #EF4444;     /* Red for errors */
+
+  /* Text Colors - High contrast for accessibility */
+  --color-text-primary: #F8FAFC;     /* Near white for primary text */
+  --color-text-secondary: #CBD5E1;   /* Light gray for secondary text */
+  --color-text-muted: #94A3B8;       /* Muted gray for subtle text */
+
+  /* Surface Colors - Glass morphism friendly */
+  --color-surface: rgba(15, 20, 25, 0.8);
+  --color-surface-light: rgba(26, 31, 38, 0.9);
+  --color-border: rgba(203, 213, 225, 0.2);
+  --color-border-light: rgba(203, 213, 225, 0.1);
+
+  /* Legacy compatibility - will be removed */
+  --color-text-on-dark: #F8FAFC;     /* Alias for text-primary */
 }
 
 :root {
@@ -18,8 +43,8 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #0B1537;
-  color: #E6E8F0;
+  background-color: var(--color-primary);
+  color: var(--color-text-primary);
   overflow-x: hidden;
 }
 
@@ -40,16 +65,16 @@ body {
 
 /* Glass Morphism Effects */
 .glass-morph {
-  background: rgba(11, 21, 55, 0.25);
-  border: 1px solid rgba(245, 197, 66, 0.2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   transition: all 0.3s ease;
 }
 
 .glass-morph:hover {
-  background: rgba(11, 21, 55, 0.4);
-  border-color: rgba(245, 197, 66, 0.4);
+  background: var(--color-surface-light);
+  border-color: var(--color-border);
   transform: translateY(-2px);
 }
 
@@ -60,49 +85,63 @@ body {
 }
 
 .glow-on-hover:hover {
-  box-shadow: 0 0 20px rgba(245, 197, 66, 0.3);
+  box-shadow: 0 0 20px var(--color-accent);
 }
 
 /* Button Variants */
 .btn-primary {
-  background: linear-gradient(135deg, #F5C542 0%, #E6B532 100%);
-  color: #0B1537;
+  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-secondary-light) 100%);
+  color: white;
   font-weight: 600;
   border: none;
   transition: all 0.3s ease;
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #E6B532 0%, #D7A622 100%);
+  background: linear-gradient(135deg, var(--color-secondary-light) 0%, var(--color-secondary-dark) 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 15px rgba(245, 197, 66, 0.4);
+  box-shadow: 0 4px 15px var(--color-secondary);
+}
+
+.btn-purple {
+  background: linear-gradient(135deg, #9333ea 0%, #a855f7 100%);
+  color: #ffffff;
+  font-weight: 600;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.btn-purple:hover {
+  background: linear-gradient(135deg, #7c3aed 0%, #9333ea 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
 }
 
 .btn-outline {
   background: transparent;
-  color: #F5C542;
-  border: 2px solid #F5C542;
+  color: var(--color-accent);
+  border: 2px solid var(--color-accent);
   font-weight: 600;
   transition: all 0.3s ease;
 }
 
 .btn-outline:hover {
-  background: #F5C542;
-  color: #0B1537;
-  box-shadow: 0 4px 15px rgba(245, 197, 66, 0.3);
+  background: var(--color-accent);
+  color: white;
+  box-shadow: 0 4px 15px var(--color-accent);
 }
 
 .btn-ghost {
   background: transparent;
-  color: #E6E8F0;
-  border: 1px solid rgba(230, 232, 240, 0.2);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
   font-weight: 500;
   transition: all 0.3s ease;
 }
 
 .btn-ghost:hover {
-  background: rgba(230, 232, 240, 0.1);
-  border-color: rgba(230, 232, 240, 0.4);
+  background: var(--color-surface);
+  border-color: var(--color-border);
 }
 
 /* Badge Variants */
@@ -131,9 +170,9 @@ body {
 }
 
 .badge-default {
-  background: rgba(245, 197, 66, 0.2);
-  color: #F5C542;
-  border: 1px solid rgba(245, 197, 66, 0.3);
+  background: var(--color-accent-warning);
+  color: white;
+  border: 1px solid var(--color-accent-warning);
 }
 
 /* Particle Background Container */
@@ -164,12 +203,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(245, 197, 66, 0.5);
+  background: var(--color-accent);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(245, 197, 66, 0.7);
+  background: var(--color-accent-light);
 }
 
 /* Loading Animation */
@@ -194,8 +233,8 @@ body {
 /* Focus States */
 input:focus, textarea:focus, select:focus {
   outline: none;
-  border-color: #F5C542;
-  box-shadow: 0 0 0 3px rgba(245, 197, 66, 0.1);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent);
 }
 
 /* Custom Modal Overlay */
@@ -205,9 +244,117 @@ input:focus, textarea:focus, select:focus {
   -webkit-backdrop-filter: blur(4px);
 }
 
-/* Responsive Typography */
+/* Typography System Implementation */
+.typography-heading-1 {
+  font-size: 32px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.typography-heading-2 {
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.typography-heading-3 {
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.typography-body {
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--color-text-primary);
+}
+
+.typography-body-sm {
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.typography-caption {
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* Spacing System - 8px Grid */
+.spacing-xs { margin: 4px; padding: 4px; }
+.spacing-sm { margin: 8px; padding: 8px; }
+.spacing-md { margin: 16px; padding: 16px; }
+.spacing-lg { margin: 24px; padding: 24px; }
+.spacing-xl { margin: 32px; padding: 32px; }
+.spacing-xxl { margin: 48px; padding: 48px; }
+
+/* Mobile Optimizations */
 @media (max-width: 768px) {
   body {
     font-size: 14px;
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Improve touch targets on mobile */
+  button, input, select, textarea, [role="button"] {
+    min-height: 44px;
+  }
+
+  /* Better tap highlighting */
+  * {
+    -webkit-tap-highlight-color: rgba(99, 102, 241, 0.1);
+  }
+
+  /* Prevent zoom on input focus */
+  input, select, textarea {
+    font-size: 16px;
+  }
+}
+
+/* Touch feedback for interactive elements */
+@media (hover: none) and (pointer: coarse) {
+  .btn-primary:active,
+  .btn-secondary:active,
+  .btn-outline:active,
+  .btn-ghost:active,
+  .btn-purple:active {
+    transform: scale(0.98);
+    opacity: 0.8;
+  }
+}
+
+/* Swipe gesture support */
+.swipe-container {
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.swipe-item {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+/* Mobile-first responsive utilities */
+@media (min-width: 640px) { .sm\\:hidden { display: none; } }
+@media (min-width: 768px) { .md\\:hidden { display: none; } }
+@media (min-width: 1024px) { .lg\\:hidden { display: none; } }
+
+/* Safe area for mobile devices with notches */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }

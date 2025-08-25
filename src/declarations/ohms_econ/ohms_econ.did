@@ -1,0 +1,262 @@
+type JobPriority = variant {
+  Low;
+  Normal;
+  High;
+  Critical;
+};
+
+type JobSpec = record {
+  job_id : text;
+  model_id : text;
+  estimated_tokens : nat32;
+  estimated_compute_cycles : nat64;
+  priority : JobPriority;
+};
+
+type CostQuote = record {
+  job_id : text;
+  estimated_cost : nat64;
+  base_cost : nat64;
+  priority_multiplier : float32;
+  protocol_fee : nat64;
+  quote_expires_at : nat64;
+  quote_id : text;
+};
+
+type EscrowStatus = variant {
+  Pending;
+  Active;
+  Released;
+  Refunded;
+  Expired;
+};
+
+type EscrowAccount = record {
+  escrow_id : text;
+  job_id : text;
+  principal_id : text;
+  amount : nat64;
+  status : EscrowStatus;
+  created_at : nat64;
+  expires_at : nat64;
+};
+
+type SettlementStatus = variant {
+  Pending;
+  Completed;
+  Failed;
+  Disputed;
+};
+
+type FeesBreakdown = record {
+  base_amount : nat64;
+  protocol_fee : nat64;
+  agent_fee : nat64;
+  total_amount : nat64;
+};
+
+type Receipt = record {
+  receipt_id : text;
+  job_id : text;
+  escrow_id : text;
+  agent_id : text;
+  actual_cost : nat64;
+  fees_breakdown : FeesBreakdown;
+  settlement_status : SettlementStatus;
+  created_at : nat64;
+  settled_at : opt nat64;
+};
+
+type Balance = record {
+  principal_id : text;
+  available_balance : nat64;
+  escrowed_balance : nat64;
+  total_earnings : nat64;
+  last_updated : nat64;
+};
+
+type FeePolicy = record {
+  protocol_fee_percentage : float32;
+  agent_fee_percentage : float32;
+  minimum_fee : nat64;
+  priority_multipliers : vec record { text; float32 };
+  last_updated : nat64;
+};
+
+type EconHealth = record {
+  total_escrows : nat32;
+  active_escrows : nat32;
+  total_receipts : nat32;
+  pending_settlements : nat32;
+  total_volume : nat64;
+  protocol_fees_collected : nat64;
+  average_job_cost : float64;
+};
+
+type Result = variant { Ok : text; Err : text };
+type Result_1 = variant { Ok : CostQuote; Err : text };
+type Result_2 = variant { Ok : Balance; Err : text };
+type Result_3 = variant { Ok : EscrowAccount; Err : text };
+type Result_4 = variant { Ok : Receipt; Err : text };
+type Result_5 = variant { Ok : vec Receipt; Err : text };
+type Result_6 = variant { Ok; Err : text };
+
+// Subscription types
+type InferenceRate = variant {
+  Standard;
+  Priority;
+  Premium;
+};
+
+type TierConfig = record {
+  name : text;
+  monthly_fee_usd : nat32;
+  max_agents : nat32;
+  monthly_agent_creations : nat32;
+  token_limit : nat64;
+  inference_rate : InferenceRate;
+  features : vec text;
+};
+
+type PaymentStatus = variant {
+  Active;
+  Pending;
+  Failed;
+  Cancelled;
+};
+
+type UsageMetrics = record {
+  agents_created_this_month : nat32;
+  tokens_used_this_month : nat64;
+  inferences_this_month : nat32;
+  last_reset_date : nat64;
+};
+
+type UserSubscription = record {
+  principal_id : text;
+  tier : TierConfig;
+  started_at : nat64;
+  expires_at : nat64;
+  auto_renew : bool;
+  current_usage : UsageMetrics;
+  payment_status : PaymentStatus;
+  created_at : nat64;
+  updated_at : nat64;
+};
+
+type QuotaRemaining = record {
+  agents_remaining : nat32;
+  tokens_remaining : nat64;
+  inferences_remaining : nat32;
+};
+
+type QuotaValidation = record {
+  allowed : bool;
+  reason : opt text;
+  remaining_quota : opt QuotaRemaining;
+};
+
+type SubscriptionStats = record {
+  total_subscriptions : nat32;
+  active_subscriptions : nat32;
+  expired_subscriptions : nat32;
+  pending_payments : nat32;
+  tier_distribution : vec record { text; nat32 };
+  total_monthly_revenue_usd : nat32;
+};
+
+// Payment types
+type PaymentRequest = record {
+  payment_id : text;
+  subscription_tier : text;
+  amount_usd : nat32;
+  amount_icp_e8s : nat64;
+  expires_at : nat64;
+  created_at : nat64;
+};
+
+type PaymentTransaction = record {
+  transaction_id : text;
+  payment_request : PaymentRequest;
+  from_principal : text;
+  amount_paid_e8s : nat64;
+  icp_usd_rate : float64;
+  status : text;
+  created_at : nat64;
+  completed_at : opt nat64;
+};
+
+type PaymentVerification = record {
+  verified : bool;
+  transaction_id : text;
+  amount_verified : nat64;
+  verification_time : nat64;
+};
+
+type PaymentStats = record {
+  total_transactions : nat32;
+  successful_transactions : nat32;
+  failed_transactions : nat32;
+  total_volume_icp_e8s : nat64;
+  total_volume_usd : nat32;
+};
+
+type Result_UserSubscription = variant { Ok : UserSubscription; Err : text };
+type Result_QuotaValidation = variant { Ok : QuotaValidation; Err : text };
+type Result_PaymentRequest = variant { Ok : PaymentRequest; Err : text };
+type Result_PaymentTransaction = variant { Ok : PaymentTransaction; Err : text };
+type Result_PaymentVerification = variant { Ok : PaymentVerification; Err : text };
+type Result_Float64 = variant { Ok : float64; Err : text };
+type Result_Nat64 = variant { Ok : nat64; Err : text };
+
+service : {
+  // Core economics APIs
+  deposit : (nat64) -> (Result_6);
+  escrow : (text, nat64) -> (Result);
+  estimate : (JobSpec) -> (Result_1) query;
+  get_balance : (opt text) -> (Result_2) query;
+  get_escrow : (text) -> (Result_3) query;
+  get_receipt : (text) -> (Result_4) query;
+  health : () -> (EconHealth) query;
+  list_receipts : (opt text, opt nat32) -> (Result_5) query;
+  policy : () -> (FeePolicy) query;
+  refund_escrow : (text) -> (Result_6);
+  settle : (Receipt) -> (Result);
+  update_policy : (FeePolicy) -> (Result_6);
+  withdraw : (nat64) -> (Result_6);
+  
+  // Admin APIs
+  is_admin : () -> (bool) query;
+  list_admins : () -> (vec text) query;
+  add_admin : (text) -> (Result_6);
+  remove_admin : (text) -> (Result_6);
+  
+  // Subscription APIs
+  create_subscription : (text, bool) -> (Result_UserSubscription);
+  get_user_subscription : (opt text) -> (opt UserSubscription) query;
+  get_or_create_free_subscription : () -> (Result_UserSubscription);
+  update_payment_status : (PaymentStatus) -> (Result_6);
+  validate_agent_creation_quota : () -> (Result_QuotaValidation);
+  validate_token_usage_quota : (nat64) -> (Result_QuotaValidation);
+  get_user_usage : (opt text) -> (opt UsageMetrics) query;
+  cancel_subscription : () -> (Result_6);
+  renew_subscription : () -> (Result_6);
+  
+  // Admin subscription APIs
+  get_subscription_tiers : () -> (vec record { text; TierConfig }) query;
+  list_all_subscriptions : () -> (vec UserSubscription) query;
+  get_subscription_stats : () -> (SubscriptionStats) query;
+  
+  // Payment APIs
+  create_payment_request : (text) -> (Result_PaymentRequest);
+  process_subscription_payment : (PaymentRequest) -> (Result_PaymentTransaction);
+  verify_payment : (text) -> (Result_PaymentVerification);
+  get_payment_transaction : (text) -> (opt PaymentTransaction) query;
+  list_user_payment_transactions : (opt nat32) -> (vec PaymentTransaction) query;
+  get_icp_usd_rate : () -> (Result_Float64) query;
+  convert_usd_to_icp_e8s : (nat32) -> (Result_Nat64);
+  
+  // Admin payment APIs
+  get_payment_stats : () -> (PaymentStats) query;
+  list_all_payment_transactions : (opt nat32) -> (vec PaymentTransaction) query;
+}

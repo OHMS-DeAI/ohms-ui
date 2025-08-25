@@ -7,7 +7,17 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "tsx src/test/run-integration-tests.ts",
+    "test:auth": "vitest run src/test/integration/authentication.test.tsx --reporter=verbose",
+    "test:payment": "vitest run src/test/integration/payment.test.tsx --reporter=verbose",
+    "test:market": "vitest run src/test/integration/market-data.test.tsx --reporter=verbose",
+    "test:e2e": "vitest run src/test/integration/end-to-end.test.tsx --reporter=verbose",
+    "test:all": "vitest run src/test/integration/ --reporter=verbose --coverage"
   },
   "dependencies": {
     "@dfinity/agent": "^3.2.0",
@@ -16,7 +26,6 @@
     "@dfinity/identity": "^3.2.0",
     "@dfinity/ledger-icp": "^4.0.0",
     "@dfinity/principal": "^3.2.0",
-    "@nfid/identitykit": "^1.0.14",
     "@slide-computer/signer": "^3.16.0",
     "@tsparticles/react": "^3.0.0",
     "@tsparticles/slim": "^3.9.1",
@@ -31,6 +40,9 @@
   "devDependencies": {
     "@eslint/js": "^9.30.1",
     "@tailwindcss/postcss": "^4.1.11",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^24.2.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
@@ -39,9 +51,12 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
+    "jsdom": "^26.1.0",
+    "tsx": "^4.19.2",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.35.1",
-    "vite": "^7.0.4"
+    "vite": "^7.0.4",
+    "vitest": "^3.2.4"
   },
   "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
 }

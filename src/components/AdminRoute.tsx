@@ -50,7 +50,7 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
       <div className="max-w-6xl mx-auto">
         <Card className="text-center py-12">
           <h1 className="text-3xl font-bold text-accentGold mb-4">Admin Access Required</h1>
-          <p className="text-textOnDark/70 mb-4">OISY wallet not available. Please open OISY wallet.</p>
+          <p className="text-textOnDark/70 mb-4">Internet Identity v2 not available. Please connect with II v2.</p>
         </Card>
       </div>
     )

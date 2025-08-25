@@ -44,8 +44,6 @@ export default defineConfig({
       '@dfinity/auth-client',
       '@dfinity/identity',
       '@dfinity/ledger-icp',
-      '@nfid/identitykit',
-      '@nfid/identitykit/react',
       '@slide-computer/signer',
       '@slide-computer/signer-agent',
     ],

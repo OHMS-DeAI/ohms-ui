@@ -15,9 +15,9 @@ interface AuthModalProps {
 const AuthModal: React.FC<AuthModalProps> = ({ 
   isOpen, 
   onClose, 
-  redirectMessage = "You need to connect your Oisy wallet to access this page."
+  redirectMessage = "You need to connect with Internet Identity v2 to access this page."
 }) => {
-  const { isWalletAvailable, isConnecting, connect } = useAgent()
+  const { isConnecting, connect } = useAgent()
   const [error, setError] = useState<string>('')
   const [showErrorModal, setShowErrorModal] = useState(false)
 
@@ -41,13 +41,13 @@ const AuthModal: React.FC<AuthModalProps> = ({
     }
   }
 
-  const handleOpenOisy = () => {
-    window.open('https://oisy.com', '_blank')
+  const handleOpenII = () => {
+    window.open('https://id.ai', '_blank')
   }
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={onClose} title="Connect Wallet">
+      <Modal isOpen={isOpen} onClose={onClose} title="Internet Identity v2 Authentication">
         <div className="text-center py-4">
           <div className="w-16 h-16 mx-auto mb-4 bg-accentGold/20 rounded-full flex items-center justify-center">
             <svg 
@@ -92,46 +92,19 @@ const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-        {!isWalletAvailable ? (
-          <div className="space-y-4">
-            <div className="p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
-              <p className="text-red-300 text-sm mb-2">
-                🔌 Oisy wallet not available
-              </p>
-              <p className="text-textOnDark/60 text-xs mb-3">
-                OISY wallet is required to access OHMS platform
-              </p>
-              <div className="text-textOnDark/50 text-xs space-y-1">
-                <p>• Visit https://oisy.com to set up your wallet</p>
-                <p>• Ensure OISY is open in another tab</p>
-                <p>• Enable third-party cookies if needed</p>
-              </div>
-            </div>
-            
-            <Button 
-              onClick={handleOpenOisy}
-              className="w-full"
-            >
-              Open Oisy Wallet
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              onClick={onClose}
-              className="w-full"
-            >
-              Cancel
-            </Button>
-          </div>
-        ) : (
           <div className="space-y-4">
             <div className="p-4 bg-accentGold/10 border border-accentGold/30 rounded-lg">
               <p className="text-textOnDark/80 text-sm mb-2">
-                🔗 Ready to connect with Oisy wallet
+                🆔 Ready to authenticate with Internet Identity v2
               </p>
-              <p className="text-textOnDark/60 text-xs">
-                This will open a popup to authorize the connection
+              <p className="text-textOnDark/60 text-xs mb-2">
+                This will open a popup to authorize your connection with Google OAuth
               </p>
+              <div className="text-textOnDark/50 text-xs space-y-1">
+                <p>• Your Google account will be used for subscription management</p>
+                <p>• Authentication persists for 7 days for convenience</p>
+                <p>• Secure connection via Internet Computer network</p>
+              </div>
             </div>
 
             <Button 
@@ -142,23 +115,32 @@ const AuthModal: React.FC<AuthModalProps> = ({
               {isConnecting ? (
                 <div className="flex items-center justify-center gap-2">
                   <LoadingSpinner size="sm" />
-                  <span>Connecting...</span>
+                  <span>Authenticating...</span>
                 </div>
               ) : (
-                'Connect Oisy Wallet'
+                '🆔 Connect with Internet Identity v2'
               )}
             </Button>
             
-            <Button 
-              variant="outline" 
-              onClick={onClose}
-              className="w-full"
-              disabled={isConnecting}
-            >
-              Cancel
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={handleOpenII}
+                className="flex-1"
+                disabled={isConnecting}
+              >
+                Open ID.ai
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={onClose}
+                className="flex-1"
+                disabled={isConnecting}
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
-        )}
 
           <div className="mt-6 pt-4 border-t border-accentGold/20">
             <p className="text-xs text-textOnDark/50">
