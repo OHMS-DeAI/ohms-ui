@@ -1,13 +1,13 @@
 # OHMS UI - Revolutionary Autonomous Agent Platform Interface
 
-[![OHMS 2.0](https://img.shields.io/badge/OHMS-2.0-blue.svg)](https://github.com/ohms-2-0)
+[![OHMS 2.0](https://img.shields.io/badge/OHMS-2.0-blue.svg)](https://github.com/OHMS-DeAI)
 [![React](https://img.shields.io/badge/React-19-blue.svg)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![Internet Computer](https://img.shields.io/badge/Internet_Computer-ICP-blue.svg)](https://internetcomputer.org/)
 [![Vite](https://img.shields.io/badge/Vite-5.0+-purple.svg)](https://vitejs.dev/)
 
-**Canister ID:** `xg5yr-zaaaa-aaaah-qqe5a-cai`
-**Network:** Internet Computer Mainnet
+**Canister ID:** `xg5yr-zaaaa-aaaah-qqe5a-cai`\
+**Network:** Internet Computer Mainnet\
 **Direct URL:** https://xg5yr-zaaaa-aaaah-qqe5a-cai.icp0.io/
 
 The OHMS UI is the revolutionary user interface for the world's first subscription-based autonomous agent platform. This decentralized frontend, deployed entirely on the Internet Computer, provides a seamless experience for users to authenticate, subscribe, and create autonomous AI agents from natural language instructions.
@@ -291,367 +291,101 @@ graph LR
 
 ### Authentication & Authorization
 
-```typescript
-// Internet Identity v2 Authentication Hook
-export const useAuth = () => {
-  const [principal, setPrincipal] = useState<Principal | null>(null);
-  const [identity, setIdentity] = useState<Identity | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+The platform implements comprehensive authentication and authorization:
 
-  const login = async () => {
-    try {
-      const authClient = await AuthClient.create({
-        idleOptions: {
-          idleTimeout: 1000 * 60 * 30, // 30 minutes
-          disableDefaultIdleCallback: true,
-        },
-      });
-
-      await authClient.login({
-        identityProvider: 'https://id.ai',
-        maxTimeToLive: BigInt(24 * 60 * 60 * 1000 * 1000 * 1000),
-        onSuccess: () => {
-          const identity = authClient.getIdentity();
-          const principal = identity.getPrincipal();
-
-          setIdentity(identity);
-          setPrincipal(principal);
-          setIsAuthenticated(true);
-        },
-      });
-    } catch (error) {
-      console.error('Authentication failed:', error);
-      setIsAuthenticated(false);
-    }
-  };
-
-  const logout = async () => {
-    // Logout implementation
-  };
-
-  return { principal, identity, isAuthenticated, isLoading, login, logout };
-};
-
-// Route Protection Component
-export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
-};
-```
+- **Internet Identity v2 Integration**: Secure authentication with real principal extraction
+- **Custom Authentication Hooks**: Centralized state management for user authentication
+- **Route Protection**: Component-level security for protected routes and admin access
+- **Session Management**: Persistent authentication state with automatic logout
 
 ### Canister Communication Security
 
-```typescript
-// Secure Canister Agent Creation
-export const createSecureAgent = async (canisterId: string, identity: Identity) => {
-  const agent = await createAgent({
-    identity,
-    host: process.env.NODE_ENV === 'production' ? 'https://ic0.app' : 'http://localhost:4943',
-  });
+The platform ensures secure communication with ICP canisters through:
 
-  if (process.env.NODE_ENV === 'development') {
-    await agent.fetchRootKey();
-  }
-
-  return Actor.createActor(idlFactory, {
-    agent,
-    canisterId,
-  });
-};
-
-// API Call Wrapper with Error Handling
-export const apiCall = async <T>(
-  canisterCall: () => Promise<T>,
-  errorHandler?: (error: any) => void
-): Promise<T | null> => {
-  try {
-    return await canisterCall();
-  } catch (error) {
-    console.error('Canister call failed:', error);
-
-    if (errorHandler) {
-      errorHandler(error);
-    } else {
-      // Default error handling
-      toast.error('Operation failed. Please try again.');
-    }
-
-    return null;
-  }
-};
-```
+- **Authenticated Agent Creation**: Secure canister connections with user identity
+- **Environment-Aware Configuration**: Different settings for development and production
+- **Comprehensive Error Handling**: Robust error management for all canister operations
+- **API Call Wrappers**: Consistent error handling and user feedback
 
 ## 📱 Responsive Design System
 
 ### Breakpoint System
 
-```scss
-// Tailwind CSS Custom Breakpoints
-@screen sm { /* 640px */ }
-@screen md { /* 768px */ }
-@screen lg { /* 1024px */ }
-@screen xl { /* 1280px */ }
-@screen 2xl { /* 1536px */ }
-```
+The platform uses a comprehensive breakpoint system with:
+
+- **Custom Tailwind CSS Breakpoints**: Extended responsive design from mobile to large screens
+- **Mobile-First Approach**: Progressive enhancement across all device sizes
+- **Flexible Grid System**: Responsive layouts that adapt to different screen sizes
 
 ### Component Architecture
 
-```typescript
-// Base Component Structure
-interface BaseComponentProps {
-  className?: string;
-  children?: React.ReactNode;
-  variant?: 'primary' | 'secondary' | 'outline';
-  size?: 'sm' | 'md' | 'lg';
-  disabled?: boolean;
-  loading?: boolean;
-}
+The platform implements a robust component architecture with:
 
-// Responsive Grid System
-const ResponsiveGrid: React.FC<BaseComponentProps> = ({
-  children,
-  className = '',
-  ...props
-}) => {
-  return (
-    <div
-      className={cn(
-        'grid gap-4',
-        'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-};
-```
+- **Base Component Props**: Standardized interface for all UI components
+- **Responsive Grid System**: Flexible layouts that work across all devices
+- **Type-Safe Components**: Full TypeScript integration for reliability
+- **Consistent Design Patterns**: Reusable components following established design principles
 
 ## 🚀 Development & Deployment
 
 ### Local Development Setup
 
-```bash
-# Install dependencies
-npm install
+The platform supports comprehensive development workflows including:
 
-# Start local ICP replica
-npm run dfx:start
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Deploy to local network
-npm run dfx:deploy:local
-
-# Deploy to mainnet
-npm run dfx:deploy:ic
-```
+- **Dependency Management**: Automated installation and management of all required packages
+- **Local ICP Development**: Full local replica setup for canister testing and development
+- **Development Server**: Hot-reload development environment with real-time updates
+- **Production Builds**: Optimized build processes for deployment
+- **Multi-Environment Deployment**: Support for local, testnet, and mainnet deployments
 
 ### Environment Configuration
 
-```bash
-# .env.local
-VITE_DFX_NETWORK=local
-VITE_AGENT_CANISTER_ID=uzt4z-lp777-77774-qaabq-cai
-VITE_COORDINATOR_CANISTER_ID=your-coordinator-id
-VITE_ECON_CANISTER_ID=your-econ-id
-VITE_MODEL_CANISTER_ID=your-model-id
-VITE_II_HOST=https://id.ai
-VITE_II_CANISTER_ID=rdmx6-jaaaa-aaaaa-aaadq-cai
+The platform uses comprehensive environment configuration for:
 
-# .env.production
-VITE_DFX_NETWORK=ic
-VITE_AGENT_CANISTER_ID=gavyi-uyaaa-aaaaa-qbu7q-cai
-VITE_COORDINATOR_CANISTER_ID=xp6tn-piaaa-aaaah-qqe4q-cai
-VITE_ECON_CANISTER_ID=tetse-piaaa-aaaao-qkeyq-cai
-VITE_MODEL_CANISTER_ID=3aes4-xyaaa-aaaal-qsryq-cai
-VITE_II_HOST=https://id.ai
-VITE_II_CANISTER_ID=rdmx6-jaaaa-aaaaa-aaadq-cai
-```
+- **Network Selection**: Flexible configuration for local development and production
+- **Canister Integration**: Real canister IDs for all OHMS platform components
+- **Authentication Setup**: Internet Identity v2 configuration for secure authentication
+- **Environment-Specific Settings**: Different configurations for development and production environments
 
 ### Build Optimization
 
-```typescript
-// vite.config.ts
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react-swc';
-import { splitVendorChunkPlugin } from 'vite';
+The platform implements advanced build optimization strategies including:
 
-export default defineConfig({
-  plugins: [
-    react(),
-    splitVendorChunkPlugin(),
-  ],
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'ic-vendor': ['@dfinity/agent', '@dfinity/auth-client'],
-          'ui-vendor': ['lucide-react', 'framer-motion'],
-        },
-      },
-    },
-    chunkSizeWarningLimit: 1000,
-  },
-  optimizeDeps: {
-    include: [
-      'react',
-      'react-dom',
-      '@dfinity/agent',
-      '@dfinity/auth-client',
-    ],
-  },
-});
-```
+- **Vite Configuration**: Optimized bundling with React SWC for faster builds
+- **Code Splitting**: Intelligent chunk splitting for vendors and components
+- **Dependency Optimization**: Pre-bundling of critical dependencies
+- **Asset Management**: Efficient handling of static assets and fonts
 
 ## 📊 Analytics & Monitoring
 
 ### Performance Monitoring
 
-```typescript
-// Performance Monitoring Hook
-export const usePerformanceMonitor = () => {
-  const [metrics, setMetrics] = useState({
-    pageLoadTime: 0,
-    apiResponseTime: 0,
-    errorRate: 0,
-    userSatisfaction: 0,
-  });
+The platform implements comprehensive performance monitoring including:
 
-  useEffect(() => {
-    // Monitor Core Web Vitals
-    const observer = new PerformanceObserver((list) => {
-      list.getEntries().forEach((entry) => {
-        if (entry.entryType === 'measure') {
-          setMetrics(prev => ({
-            ...prev,
-            pageLoadTime: entry.duration,
-          }));
-        }
-      });
-    });
-
-    observer.observe({ entryTypes: ['measure'] });
-
-    return () => observer.disconnect();
-  }, []);
-
-  return metrics;
-};
-
-// Error Boundary Component
-export class ErrorBoundary extends React.Component<
-  { children: React.ReactNode; fallback?: React.ReactNode },
-  { hasError: boolean; error?: Error }
-> {
-  constructor(props: any) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: any) {
-    // Log error to monitoring service
-    console.error('UI Error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return this.props.fallback || (
-        <div className="error-boundary">
-          <h2>Something went wrong</h2>
-          <button onClick={() => window.location.reload()}>
-            Reload Page
-          </button>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-```
+- **Core Web Vitals Tracking**: Continuous monitoring of page load times and user experience metrics
+- **Real-time Analytics**: Performance data collection and analysis for optimization
+- **Error Boundary Components**: Graceful error handling with user-friendly fallbacks
+- **User Experience Metrics**: Tracking of response times, error rates, and satisfaction indicators
 
 ## 🧪 Testing Strategy
 
 ### Unit Testing
 
-```typescript
-// Component Testing with React Testing Library
-import { render, screen, fireEvent } from '@testing-library/react';
-import { AgentCreator } from './components/AgentCreator';
+The platform implements comprehensive unit testing including:
 
-describe('AgentCreator', () => {
-  it('renders instruction input form', () => {
-    render(<AgentCreator />);
-    expect(screen.getByLabelText(/instructions/i)).toBeInTheDocument();
-  });
-
-  it('submits form with valid instructions', async () => {
-    const mockOnSubmit = jest.fn();
-    render(<AgentCreator onSubmit={mockOnSubmit} />);
-
-    fireEvent.change(screen.getByLabelText(/instructions/i), {
-      target: { value: 'Create a Python coding assistant' },
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /create agent/i }));
-
-    expect(mockOnSubmit).toHaveBeenCalledWith('Create a Python coding assistant');
-  });
-});
-```
+- **Component Testing**: React Testing Library for UI component validation
+- **Form Testing**: Input validation and user interaction testing
+- **State Management Testing**: Authentication and data flow testing
+- **Error Handling Testing**: Edge case and error condition testing
 
 ### Integration Testing
 
-```typescript
-// Canister Integration Testing
-import { createAgent, Identity } from '@dfinity/agent';
+The platform includes thorough integration testing covering:
 
-describe('OHMS Canister Integration', () => {
-  let agent: Agent;
-  let identity: Identity;
-
-  beforeAll(async () => {
-    // Setup test identity and agent
-    identity = {}; // Mock identity
-    agent = await createAgent({
-      identity,
-      host: 'http://localhost:4943',
-    });
-  });
-
-  it('creates agent from instructions', async () => {
-    const instructions = 'Create a coding assistant';
-    const result = await agent.call('create_agents_from_instructions', {
-      instructions,
-      agent_count: 1,
-    });
-
-    expect(result).toBeDefined();
-    expect(result.agent_id).toBeDefined();
-  });
-});
-```
+- **Canister Communication**: End-to-end canister interaction testing
+- **Authentication Flow**: Complete II v2 authentication testing
+- **Agent Creation Flow**: Full instruction-to-agent creation pipeline testing
+- **Error Scenarios**: Comprehensive error condition and recovery testing
 
 ## 📋 Success Metrics
 
@@ -687,7 +421,7 @@ describe('OHMS Canister Integration', () => {
 
 ### Community
 - [OHMS Discord](https://discord.gg/ohms)
-- [GitHub Repository](https://github.com/ohms-2-0/ohms-ui)
+- [GitHub Repository](https://github.com/OHMS-DeAI/ohms-ui)
 - [ICP Community Forum](https://forum.dfinity.org/)
 
 ---
