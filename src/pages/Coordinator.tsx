@@ -1,5 +1,11 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useAgent } from '../context/AgentContext';
+import { 
+  createAgentsFromInstructions, 
+  executeCoordinatorWorkflow, 
+  sendMessageToAgent, 
+  bindAgentAndWireRoutes 
+} from '../services/canisterService';
 
 // Types for the workflow system
 interface WorkflowNode {
@@ -37,6 +43,7 @@ interface Workflow {
 const Coordinator: React.FC = () => {
   const { isConnected } = useAgent();
   const canvasRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -45,6 +52,12 @@ const Coordinator: React.FC = () => {
   const [connectingFrom, setConnectingFrom] = useState<WorkflowNode | null>(null);
   const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
   const [showConfigPanel, setShowConfigPanel] = useState(false);
+  const [temporaryLine, setTemporaryLine] = useState<{x1: number, y1: number, x2: number, y2: number} | null>(null);
+  const [draggedNodePosition, setDraggedNodePosition] = useState<{id: string, x: number, y: number} | null>(null);
+  const [showInteractionPanel, setShowInteractionPanel] = useState(false);
+  const [selectedAgentForInteraction, setSelectedAgentForInteraction] = useState<string | null>(null);
+  const [interactionMessage, setInteractionMessage] = useState('');
+  const [interactionHistory, setInteractionHistory] = useState<{role: string, message: string, timestamp: Date}[]>([]);
 
   // Available node types for the workflow
   const nodeTypes = [
@@ -53,6 +66,67 @@ const Coordinator: React.FC = () => {
     { type: 'condition', label: 'Condition', icon: '🔀', color: 'from-green-500 to-teal-500' },
     { type: 'action', label: 'Action', icon: '⚙️', color: 'from-red-500 to-pink-500' },
   ];
+
+  // Calculate optimal position for new node to avoid overlap
+  const calculateOptimalPosition = useCallback((basePosition: { x: number; y: number }) => {
+    if (!selectedWorkflow) return basePosition;
+
+    const nodeWidth = 180; // Node width + padding
+    const nodeHeight = 120; // Node height + padding
+    let position = { ...basePosition };
+    let attempts = 0;
+    const maxAttempts = 100;
+
+    // Ensure minimum distance from edges
+    const minX = nodeWidth / 2 + 20;
+    const minY = nodeHeight / 2 + 20;
+    const maxX = (canvasRef.current?.offsetWidth || 1200) - nodeWidth / 2 - 20;
+    const maxY = (canvasRef.current?.offsetHeight || 800) - nodeHeight / 2 - 20;
+
+    position.x = Math.max(minX, Math.min(maxX, position.x));
+    position.y = Math.max(minY, Math.min(maxY, position.y));
+
+    while (attempts < maxAttempts) {
+      let hasOverlap = false;
+
+      for (const node of selectedWorkflow.nodes) {
+        const dx = Math.abs(position.x - node.position.x);
+        const dy = Math.abs(position.y - node.position.y);
+
+        if (dx < nodeWidth && dy < nodeHeight) {
+          hasOverlap = true;
+          break;
+        }
+      }
+
+      if (!hasOverlap) {
+        return position;
+      }
+
+      // Try next position in a grid pattern first, then spiral
+      if (attempts < 20) {
+        const gridSize = 200;
+        const row = Math.floor(attempts / 5);
+        const col = attempts % 5;
+        position.x = minX + col * gridSize;
+        position.y = minY + row * gridSize;
+      } else {
+        // Spiral pattern for remaining attempts
+        const angle = (attempts - 20) * 0.8;
+        const radius = 100 + (attempts - 20) * 30;
+        position.x = basePosition.x + Math.cos(angle) * radius;
+        position.y = basePosition.y + Math.sin(angle) * radius;
+      }
+
+      // Keep within bounds
+      position.x = Math.max(minX, Math.min(maxX, position.x));
+      position.y = Math.max(minY, Math.min(maxY, position.y));
+      
+      attempts++;
+    }
+
+    return position;
+  }, [selectedWorkflow]);
 
   // Create new workflow
   const createWorkflow = useCallback(() => {
@@ -129,23 +203,25 @@ const Coordinator: React.FC = () => {
 
   // Calculate connection path between two nodes
   const calculateConnectionPath = useCallback((sourceNode: WorkflowNode, targetNode: WorkflowNode) => {
-    const sourceX = sourceNode.position.x + 80; // Node width / 2
-    const sourceY = sourceNode.position.y + 40; // Node height / 2
+    // Use node center positions (nodes are 160px wide, 80px high)
+    const sourceX = sourceNode.position.x + 80;
+    const sourceY = sourceNode.position.y + 80; // Bottom of source node
     const targetX = targetNode.position.x + 80;
-    const targetY = targetNode.position.y + 40;
+    const targetY = targetNode.position.y; // Top of target node
 
-    // Calculate control points for curved line
+    // Calculate control points for smooth curved line
     const dx = targetX - sourceX;
     const dy = targetY - sourceY;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
-    // Control point offset based on distance
-    const offset = Math.min(distance * 0.3, 100);
+    // Control point offset based on distance (minimum 60px for nice curves)
+    const offset = Math.max(Math.min(distance * 0.4, 120), 60);
 
-    const cp1x = sourceX + offset;
-    const cp1y = sourceY;
-    const cp2x = targetX - offset;
-    const cp2y = targetY;
+    // Control points for vertical flow
+    const cp1x = sourceX;
+    const cp1y = sourceY + offset;
+    const cp2x = targetX;
+    const cp2y = targetY - offset;
 
     return `M ${sourceX} ${sourceY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${targetX} ${targetY}`;
   }, []);
@@ -178,19 +254,64 @@ const Coordinator: React.FC = () => {
   }, [selectedWorkflow, calculateConnectionPath]);
 
   // Handle node connection start
-  const handleNodeConnectionStart = useCallback((node: WorkflowNode) => {
+  const handleNodeConnectionStart = useCallback((e: React.MouseEvent, node: WorkflowNode) => {
+    e.stopPropagation();
+    
+    if (isConnecting && connectingFrom) {
+      // If already connecting, cancel the current connection
+      setConnectingFrom(null);
+      setIsConnecting(false);
+      setTemporaryLine(null);
+      return;
+    }
+    
+    // Start new connection
     setConnectingFrom(node);
     setIsConnecting(true);
-  }, []);
+    
+    // Set up temporary line from node center
+    const nodeX = node.position.x + 80; // Center of 160px wide node
+    const nodeY = node.position.y + 40; // Center of 80px high node
+    
+    setTemporaryLine({
+      x1: nodeX,
+      y1: nodeY,
+      x2: nodeX,
+      y2: nodeY
+    });
+  }, [isConnecting, connectingFrom]);
 
   // Handle node connection end
-  const handleNodeConnectionEnd = useCallback((node: WorkflowNode) => {
-    if (connectingFrom && connectingFrom.id !== node.id) {
-      createConnection(connectingFrom, node);
+  const handleNodeConnectionEnd = useCallback((e: React.MouseEvent, node: WorkflowNode) => {
+    e.stopPropagation();
+    
+    if (!isConnecting || !connectingFrom) {
+      return;
     }
+    
+    if (connectingFrom.id === node.id) {
+      return;
+    }
+    
+    // Create the connection
+    createConnection(connectingFrom, node);
+    
+    // Reset connection state
     setConnectingFrom(null);
     setIsConnecting(false);
-  }, [connectingFrom, createConnection]);
+    setTemporaryLine(null);
+  }, [isConnecting, connectingFrom, createConnection]);
+
+  // Handle canvas mouse move for temporary line
+  const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isConnecting || !connectingFrom || !canvasRef.current) return;
+    
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    setTemporaryLine(prev => prev ? { ...prev, x2: x, y2: y } : null);
+  }, [isConnecting, connectingFrom]);
 
   // Handle node click for configuration
   const handleNodeClick = useCallback((node: WorkflowNode) => {
@@ -214,43 +335,118 @@ const Coordinator: React.FC = () => {
     });
   }, [selectedWorkflow]);
 
-  // Calculate optimal position for new node to avoid overlap
-  const calculateOptimalPosition = useCallback((basePosition: { x: number; y: number }) => {
-    if (!selectedWorkflow) return basePosition;
+  // Execute workflow with real agents
+  const executeWorkflow = useCallback(async () => {
+    if (!selectedWorkflow) return;
 
-    const nodeWidth = 160; // Node width + padding
-    const nodeHeight = 96; // Node height + padding
-    let position = { ...basePosition };
-    let attempts = 0;
-    const maxAttempts = 50;
+    // Update workflow status
+    setSelectedWorkflow(prev => {
+      if (!prev) return prev;
+      return { ...prev, status: 'active' as const };
+    });
 
-    while (attempts < maxAttempts) {
-      let hasOverlap = false;
+    try {
+      // Use the new coordinator workflow execution service
+      const result = await executeCoordinatorWorkflow(selectedWorkflow);
 
-      for (const node of selectedWorkflow.nodes) {
-        const dx = Math.abs(position.x - node.position.x);
-        const dy = Math.abs(position.y - node.position.y);
-
-        if (dx < nodeWidth && dy < nodeHeight) {
-          hasOverlap = true;
-          break;
-        }
+      if (result.success) {
+        // Update nodes with agent IDs and responses
+        setSelectedWorkflow(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            nodes: prev.nodes.map(node => {
+              const nodeResult = result.results.find((r: any) => r.nodeId === node.id);
+              if (nodeResult) {
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    config: {
+                      ...node.data.config,
+                      agentId: nodeResult.agentId,
+                      status: 'running',
+                      lastResponse: nodeResult.response
+                    }
+                  }
+                };
+              }
+              return node;
+            }),
+            updated_at: new Date(),
+          };
+        });
       }
-
-      if (!hasOverlap) {
-        return position;
-      }
-
-      // Try next position in a spiral pattern
-      const angle = attempts * 0.5;
-      const radius = 50 + attempts * 20;
-      position.x = basePosition.x + Math.cos(angle) * radius;
-      position.y = basePosition.y + Math.sin(angle) * radius;
-      attempts++;
+    } catch (error) {      
+      // Update workflow status to error
+      setSelectedWorkflow(prev => {
+        if (!prev) return prev;
+        return { ...prev, status: 'paused' as const };
+      });
+      
+      // Show user-friendly error
+      alert(`Workflow execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    return position;
   }, [selectedWorkflow]);
+
+  // Stop workflow execution
+  const stopWorkflow = useCallback(() => {
+    if (!selectedWorkflow) return;
+
+    setSelectedWorkflow(prev => {
+      if (!prev) return prev;
+      return { 
+        ...prev, 
+        status: 'paused' as const,
+        nodes: prev.nodes.map(node => ({
+          ...node,
+          data: { ...node.data, status: 'stopped' }
+        }))
+      };
+    });
+  }, [selectedWorkflow]);
+
+  // Interact with agent
+  const handleAgentInteraction = useCallback(async (agentId: string) => {
+    if (!interactionMessage.trim()) return;
+
+    const userMessage = interactionMessage.trim();
+    setInteractionMessage('');
+
+    // Add user message to history
+    setInteractionHistory(prev => [
+      ...prev,
+      { role: 'user', message: userMessage, timestamp: new Date() }
+    ]);
+
+    try {
+      const response = await sendMessageToAgent(agentId, userMessage);
+      
+      // Add agent response to history
+      setInteractionHistory(prev => [
+        ...prev,
+        { role: 'agent', message: response.response, timestamp: new Date() }
+      ]);
+
+    } catch (error) {
+      // Add error message to history
+      setInteractionHistory(prev => [
+        ...prev,
+        { 
+          role: 'system', 
+          message: `Error: ${error instanceof Error ? error.message : 'Failed to communicate with agent'}`,
+          timestamp: new Date() 
+        }
+      ]);
+    }
+  }, [interactionMessage]);
+
+  // Open interaction panel for specific agent
+  const openAgentInteraction = useCallback((agentId: string) => {
+    setSelectedAgentForInteraction(agentId);
+    setShowInteractionPanel(true);
+    setInteractionHistory([]);
+  }, []);
 
   if (!isConnected) {
     return (
@@ -299,9 +495,9 @@ const Coordinator: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-12 gap-6">
+        <div className="flex gap-6 h-[calc(100vh-200px)]">
           {/* Sidebar - Node Palette */}
-          <div className="col-span-3">
+          <div className="w-80 flex-shrink-0">
             <div className="bg-surface rounded-2xl p-6 border border-border">
               <h3 className="text-lg font-bold text-text-primary mb-4">Node Palette</h3>
 
@@ -360,8 +556,8 @@ const Coordinator: React.FC = () => {
             </div>
           </div>
 
-          {/* Main Canvas - Made Wider */}
-          <div className="col-span-10 lg:col-span-11">
+          {/* Main Canvas - Full Width */}
+          <div className="flex-1 min-w-0">
             <div className="bg-surface rounded-2xl border border-border overflow-hidden">
               {/* Canvas Header */}
               <div className="border-b border-border p-4">
@@ -397,8 +593,8 @@ const Coordinator: React.FC = () => {
                 </div>
               </div>
 
-              {/* Canvas Area - Made Taller and Wider */}
-              <div className="relative h-[600px] w-full overflow-auto">
+              {/* Canvas Area - Full Height */}
+              <div className="relative h-[calc(100vh-350px)] w-full overflow-hidden">
                 {!selectedWorkflow ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
@@ -423,7 +619,28 @@ const Coordinator: React.FC = () => {
                     className="w-full h-full bg-gradient-to-br from-primary/50 to-primary relative"
                     onDrop={handleCanvasDrop}
                     onDragOver={handleDragOver}
+                    onMouseMove={handleCanvasMouseMove}
                   >
+                    {/* Connection Status Indicator */}
+                    {isConnecting && connectingFrom && (
+                      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-accent-success/90 text-white px-4 py-2 rounded-lg shadow-lg z-10 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
+                        <span className="text-sm font-medium">
+                          Connecting from "{connectingFrom.data.label}" - Click a target node
+                        </span>
+                        <button
+                          onClick={() => {
+                            setIsConnecting(false);
+                            setConnectingFrom(null);
+                            setTemporaryLine(null);
+                          }}
+                          className="text-white hover:text-gray-200"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+
                     {/* Grid Background */}
                     <div className="absolute inset-0 opacity-20">
                       <svg width="100%" height="100%" className="text-border">
@@ -462,8 +679,24 @@ const Coordinator: React.FC = () => {
                           <div className="flex-1 flex items-center justify-center px-3 py-2">
                             <div className="text-center">
                               <div className="text-xs opacity-90">
-                                {node.type === 'agent' && node.data.agentId ? 'Configured' :
-                                 node.data.description || 'Click to configure'}
+                                {node.type === 'agent' && node.data.config?.agentId ? (
+                                  <div className="flex items-center gap-1 justify-center">
+                                    <div className={`w-1.5 h-1.5 rounded-full ${
+                                      node.data.config?.status === 'running' ? 'bg-green-400 animate-pulse' : 
+                                      node.data.config?.status === 'stopped' ? 'bg-red-400' : 
+                                      'bg-blue-400'
+                                    }`}></div>
+                                    <span>
+                                      {node.data.config?.status === 'running' ? 'Running' : 
+                                       node.data.config?.status === 'stopped' ? 'Stopped' : 
+                                       'Ready'}
+                                    </span>
+                                  </div>
+                                ) : node.type === 'agent' && node.data.config?.instructions ? (
+                                  'Configured'
+                                ) : (
+                                  'Click to configure'
+                                )}
                               </div>
                             </div>
                           </div>
@@ -471,20 +704,32 @@ const Coordinator: React.FC = () => {
                           {/* Connection Points */}
                           <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
                             <div
-                              className="w-3 h-3 bg-white rounded-full border-2 border-gray-600 cursor-pointer hover:bg-secondary transition-colors"
+                              className={`w-4 h-4 rounded-full border-2 cursor-pointer transition-all duration-200 ${
+                                isConnecting && connectingFrom?.id === node.id
+                                  ? 'bg-secondary border-secondary shadow-lg scale-125'
+                                  : isConnecting && connectingFrom && connectingFrom.id !== node.id
+                                  ? 'bg-accent-success border-accent-success hover:scale-110 animate-pulse'
+                                  : 'bg-white border-gray-600 hover:bg-secondary hover:border-secondary hover:scale-110'
+                              }`}
                               onClick={(e) => {
-                                e.stopPropagation();
-                                handleNodeConnectionStart(node);
+                                handleNodeConnectionStart(e, node);
                               }}
+                              title="Click to start connection"
                             />
                           </div>
                           <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
                             <div
-                              className="w-3 h-3 bg-white rounded-full border-2 border-gray-600 cursor-pointer hover:bg-secondary transition-colors"
+                              className={`w-4 h-4 rounded-full border-2 cursor-pointer transition-all duration-200 ${
+                                isConnecting && connectingFrom && connectingFrom.id !== node.id
+                                  ? 'bg-accent-success border-accent-success hover:scale-110 animate-pulse'
+                                  : isConnecting && connectingFrom?.id === node.id
+                                  ? 'bg-gray-400 border-gray-400 cursor-not-allowed'
+                                  : 'bg-white border-gray-600 hover:bg-accent-success hover:border-accent-success hover:scale-110'
+                              }`}
                               onClick={(e) => {
-                                e.stopPropagation();
-                                handleNodeConnectionEnd(node);
+                                handleNodeConnectionEnd(e, node);
                               }}
+                              title={isConnecting ? "Click to complete connection" : "Connection target"}
                             />
                           </div>
                         </div>
@@ -492,7 +737,41 @@ const Coordinator: React.FC = () => {
                     })}
 
                     {/* Connection Lines */}
-                    <svg className="absolute inset-0 pointer-events-none">
+                    <svg 
+                      ref={svgRef}
+                      className="absolute inset-0 pointer-events-none w-full h-full"
+                      style={{ zIndex: 1 }}
+                    >
+                      {/* Temporary connection line */}
+                      {temporaryLine && (
+                        <g>
+                          <line
+                            x1={temporaryLine.x1}
+                            y1={temporaryLine.y1}
+                            x2={temporaryLine.x2}
+                            y2={temporaryLine.y2}
+                            stroke="#10b981"
+                            strokeWidth="3"
+                            strokeDasharray="8,4"
+                            className="animate-pulse"
+                          />
+                          {/* Connection indicator at end */}
+                          <circle
+                            cx={temporaryLine.x2}
+                            cy={temporaryLine.y2}
+                            r="6"
+                            fill="#10b981"
+                            className="animate-ping"
+                          />
+                          <circle
+                            cx={temporaryLine.x2}
+                            cy={temporaryLine.y2}
+                            r="3"
+                            fill="#ffffff"
+                          />
+                        </g>
+                      )}
+                      
                       {selectedWorkflow.connections.map((connection) => {
                         const sourceNode = selectedWorkflow.nodes.find(n => n.id === connection.sourceId);
                         const targetNode = selectedWorkflow.nodes.find(n => n.id === connection.targetId);
@@ -504,22 +783,47 @@ const Coordinator: React.FC = () => {
 
                         return (
                           <g key={connection.id}>
+                            {/* Shadow for better visibility */}
                             <path
                               d={path}
-                              stroke="var(--color-secondary)"
-                              strokeWidth="2"
+                              stroke="rgba(0,0,0,0.2)"
+                              strokeWidth="4"
+                              fill="none"
+                              transform="translate(2,2)"
+                            />
+                            {/* Main connection path */}
+                            <path
+                              d={path}
+                              stroke="#6366f1"
+                              strokeWidth="3"
                               fill="none"
                               markerEnd="url(#arrowhead)"
-                              className="hover:stroke-blue-400 transition-colors"
+                              className="hover:stroke-blue-400 transition-colors cursor-pointer"
                             />
-                            {/* Connection label */}
-                            <text
-                              x={(sourceNode.position.x + targetNode.position.x) / 2}
-                              y={(sourceNode.position.y + targetNode.position.y) / 2 - 10}
-                              textAnchor="middle"
-                              className="text-xs fill-text-secondary pointer-events-auto cursor-pointer hover:fill-secondary"
+                            {/* Connection delete button */}
+                            <circle
+                              cx={(sourceNode.position.x + targetNode.position.x) / 2 + 80}
+                              cy={(sourceNode.position.y + targetNode.position.y) / 2 + 40}
+                              r="10"
+                              fill="rgba(239, 68, 68, 0.9)"
+                              className="pointer-events-auto cursor-pointer opacity-0 hover:opacity-100 transition-opacity"
                               onClick={() => {
-                                // Remove connection
+                                setSelectedWorkflow(prev => {
+                                  if (!prev) return prev;
+                                  return {
+                                    ...prev,
+                                    connections: prev.connections.filter(c => c.id !== connection.id),
+                                    updated_at: new Date(),
+                                  };
+                                });
+                              }}
+                            />
+                            <text
+                              x={(sourceNode.position.x + targetNode.position.x) / 2 + 80}
+                              y={(sourceNode.position.y + targetNode.position.y) / 2 + 45}
+                              textAnchor="middle"
+                              className="text-xs fill-white pointer-events-auto cursor-pointer opacity-0 hover:opacity-100 transition-opacity"
+                              onClick={() => {
                                 setSelectedWorkflow(prev => {
                                   if (!prev) return prev;
                                   return {
@@ -536,9 +840,9 @@ const Coordinator: React.FC = () => {
                         );
                       })}
                       <defs>
-                        <marker id="arrowhead" markerWidth="10" markerHeight="7"
-                               refX="9" refY="3.5" orient="auto">
-                          <polygon points="0 0, 10 3.5, 0 7" fill="var(--color-secondary)" />
+                        <marker id="arrowhead" markerWidth="12" markerHeight="8"
+                               refX="11" refY="4" orient="auto">
+                          <polygon points="0 0, 12 4, 0 8" fill="#6366f1" />
                         </marker>
                       </defs>
                     </svg>
@@ -561,15 +865,31 @@ const Coordinator: React.FC = () => {
                 <div className="border-t border-border p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <button className="px-4 py-2 bg-accent-success/20 text-accent-success rounded-lg hover:bg-accent-success/30 transition-colors">
-                        Run Workflow
-                      </button>
-                      <button className="px-4 py-2 bg-accent-warning/20 text-accent-warning rounded-lg hover:bg-accent-warning/30 transition-colors">
-                        Pause
-                      </button>
-                      <button className="px-4 py-2 bg-accent-error/20 text-accent-error rounded-lg hover:bg-accent-error/30 transition-colors">
-                        Stop
-                      </button>
+                      {selectedWorkflow.status === 'active' ? (
+                        <>
+                          <div className="px-4 py-2 bg-accent-success/20 text-accent-success rounded-lg flex items-center gap-2">
+                            <div className="w-2 h-2 bg-accent-success rounded-full animate-pulse"></div>
+                            Running
+                          </div>
+                          <button 
+                            onClick={stopWorkflow}
+                            className="px-4 py-2 bg-accent-error/20 text-accent-error rounded-lg hover:bg-accent-error/30 transition-colors"
+                          >
+                            Stop Workflow
+                          </button>
+                        </>
+                      ) : (
+                        <button 
+                          onClick={executeWorkflow}
+                          disabled={selectedWorkflow.nodes.length === 0}
+                          className="px-4 py-2 bg-accent-success/20 text-accent-success rounded-lg hover:bg-accent-success/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h1m4 0h1m6-4h1M4 7h22M4 7a2 2 0 012-2h12a2 2 0 012 2M4 7v10a2 2 0 002 2h12a2 2 0 002-2V7M4 7H2a2 2 0 00-2 2v10a2 2 0 002 2h2" />
+                          </svg>
+                          Execute Workflow
+                        </button>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-4 text-sm text-text-secondary">
@@ -605,20 +925,86 @@ const Coordinator: React.FC = () => {
               <div className="space-y-4">
                 {/* Node-specific configuration */}
                 {selectedNode?.type === 'agent' && (
-                  <div>
-                    <label className="block text-sm font-medium text-text-primary mb-2">
-                      Agent ID
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 bg-primary border border-border rounded-lg text-text-primary"
-                      placeholder="Enter agent ID"
-                      value={selectedNode?.data?.agentId || ''}
-                      onChange={(e) => {
-                        const newConfig = { ...(selectedNode?.data?.config || {}), agentId: e.target.value };
-                        updateNodeConfig(selectedNode?.id || '', newConfig);
-                      }}
-                    />
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-2">
+                        Agent Instructions
+                      </label>
+                      <textarea
+                        className="w-full px-3 py-2 bg-primary border border-border rounded-lg text-text-primary"
+                        placeholder="Enter detailed instructions for the agent..."
+                        rows={4}
+                        value={selectedNode?.data?.config?.instructions || ''}
+                        onChange={(e) => {
+                          const newConfig = { ...(selectedNode?.data?.config || {}), instructions: e.target.value };
+                          updateNodeConfig(selectedNode?.id || '', newConfig);
+                        }}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-2">
+                        Agent Capabilities
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 bg-primary border border-border rounded-lg text-text-primary"
+                        placeholder="e.g., data_analysis, communication, automation"
+                        value={(selectedNode?.data?.config?.capabilities || []).join(', ')}
+                        onChange={(e) => {
+                          const capabilities = e.target.value.split(',').map(s => s.trim()).filter(s => s);
+                          const newConfig = { ...(selectedNode?.data?.config || {}), capabilities };
+                          updateNodeConfig(selectedNode?.id || '', newConfig);
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-2">
+                        Priority Level
+                      </label>
+                      <select
+                        className="w-full px-3 py-2 bg-primary border border-border rounded-lg text-text-primary"
+                        value={selectedNode?.data?.config?.priority || 'normal'}
+                        onChange={(e) => {
+                          const newConfig = { ...(selectedNode?.data?.config || {}), priority: e.target.value };
+                          updateNodeConfig(selectedNode?.id || '', newConfig);
+                        }}
+                      >
+                        <option value="low">Low Priority</option>
+                        <option value="normal">Normal Priority</option>
+                        <option value="high">High Priority</option>
+                        <option value="urgent">Urgent</option>
+                      </select>
+                    </div>
+
+                    {selectedNode?.data?.config?.agentId && (
+                      <div className="p-3 bg-accent-success/20 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-accent-success rounded-full"></div>
+                              <span className="text-sm text-accent-success font-medium">Agent Created</span>
+                            </div>
+                            <p className="text-xs text-accent-success mt-1">
+                              ID: {selectedNode.data.config.agentId}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => openAgentInteraction(selectedNode.data.config?.agentId || '')}
+                            className="px-3 py-1 bg-accent-success/30 text-accent-success rounded text-xs hover:bg-accent-success/40 transition-colors"
+                          >
+                            Chat
+                          </button>
+                        </div>
+                        {selectedNode.data.config.lastResponse && (
+                          <div className="mt-2 p-2 bg-primary/50 rounded text-xs">
+                            <div className="text-text-secondary mb-1">Last Response:</div>
+                            <div className="text-text-primary">{selectedNode.data.config.lastResponse}</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -726,6 +1112,94 @@ const Coordinator: React.FC = () => {
                 >
                   Cancel
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Agent Interaction Panel */}
+        {showInteractionPanel && selectedAgentForInteraction && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-surface rounded-2xl border border-border max-w-2xl w-full mx-4 h-[600px] flex flex-col">
+              <div className="flex items-center justify-between p-6 border-b border-border">
+                <h3 className="text-lg font-bold text-text-primary">
+                  Chat with Agent: {selectedAgentForInteraction}
+                </h3>
+                <button
+                  onClick={() => setShowInteractionPanel(false)}
+                  className="text-text-secondary hover:text-text-primary"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Chat History */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {interactionHistory.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-text-secondary">
+                    <div className="text-center">
+                      <div className="w-12 h-12 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <svg className="w-6 h-6 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                      </div>
+                      <p>Start a conversation with your agent</p>
+                      <p className="text-sm mt-1">Ask questions or give it tasks to complete</p>
+                    </div>
+                  </div>
+                ) : (
+                  interactionHistory.map((msg, index) => (
+                    <div
+                      key={index}
+                      className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                        msg.role === 'user' 
+                          ? 'bg-secondary text-white' 
+                          : msg.role === 'system' 
+                          ? 'bg-accent-error/20 text-accent-error'
+                          : 'bg-surface-light text-text-primary border border-border'
+                      }`}>
+                        <div className="text-sm">{msg.message}</div>
+                        <div className={`text-xs mt-1 ${
+                          msg.role === 'user' ? 'text-white/70' : 'text-text-secondary'
+                        }`}>
+                          {msg.timestamp.toLocaleTimeString()}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Message Input */}
+              <div className="border-t border-border p-4">
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={interactionMessage}
+                    onChange={(e) => setInteractionMessage(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAgentInteraction(selectedAgentForInteraction);
+                      }
+                    }}
+                    placeholder="Type your message to the agent..."
+                    className="flex-1 px-3 py-2 bg-primary border border-border rounded-lg text-text-primary"
+                  />
+                  <button
+                    onClick={() => handleAgentInteraction(selectedAgentForInteraction)}
+                    disabled={!interactionMessage.trim()}
+                    className="px-4 py-2 bg-secondary text-white rounded-lg hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Send
+                  </button>
+                </div>
+                <div className="text-xs text-text-secondary mt-2">
+                  Press Enter to send or click the Send button
+                </div>
               </div>
             </div>
           </div>

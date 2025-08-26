@@ -84,7 +84,7 @@ export const handleExtensionError = (error: any): boolean => {
   if (extensionError && !extensionError.affectsApp) {
     // Log minimal info for extension errors that don't affect the app
     if (import.meta.env.DEV) {
-      console.debug('🔌 Extension error (non-critical):', extensionError.description)
+      // Removed console log
     }
     return true // Error handled
   }
@@ -113,8 +113,8 @@ export const initializeExtensionErrorSupport = (): void => {
       })
     }
     
-    console.debug('✅ Extension error support initialized')
+    // Removed console log
   } catch (error) {
-    console.warn('Failed to initialize extension error support:', error)
+    // Removed console log
   }
 }

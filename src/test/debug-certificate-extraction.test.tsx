@@ -19,7 +19,7 @@ describe('Debug Certificate Extraction', () => {
   })
   
   it('should debug the exact certificate extraction process', async () => {
-    console.log('🔬 DEBUGGING CERTIFICATE EXTRACTION PROCESS')
+    // DEBUGGING CERTIFICATE EXTRACTION PROCESS - logging removed for security
     
     // Create test data exactly as it would appear
     const mockGoogleData = {
@@ -49,32 +49,32 @@ describe('Debug Certificate Extraction', () => {
     
     for (let i = 0; i < testCertificateStructures.length; i++) {
       const certData = testCertificateStructures[i]
-      console.log(`\n🧪 Testing certificate structure ${i + 1}:`, certData)
+      // Removed // Removed console log
       
       // Convert to bytes as the real system would
       const certBytes = new TextEncoder().encode(JSON.stringify(certData))
-      console.log('📦 Certificate bytes length:', certBytes.length)
+      // Removed // Removed console log
       
       // Test CBOR decoding
       const cborResult = await service['decodeCBORCertificate'](certBytes)
-      console.log('🔍 CBOR decode result:', cborResult)
+      // Removed // Removed console log
       
       // Test Google claims extraction
       if (cborResult) {
         const googleClaims = service['extractGoogleClaimsFromDecodedCert'](cborResult)
-        console.log('📧 Google claims result:', googleClaims)
+        // Removed // Removed console log
         
         if (googleClaims) {
-          console.log(`✅ SUCCESS: Structure ${i + 1} extracted Google claims!`)
+          // Removed // Removed console log
           expect(googleClaims.email).toBe('test.user@gmail.com')
         } else {
-          console.log(`❌ FAILED: Structure ${i + 1} did not extract Google claims`)
+          // Removed // Removed console log
         }
       }
     }
     
     // Test delegation certificate decoding directly
-    console.log('\n🔧 Testing delegation certificate decoding...')
+    // Removed // Removed console log
     
     const mockCertData = new TextEncoder().encode(JSON.stringify({
       oauth_claims: {
@@ -83,18 +83,18 @@ describe('Debug Certificate Extraction', () => {
     }))
     
     const delegationResult = await service['decodeDelegationCertificate'](mockCertData)
-    console.log('🎯 Delegation decode result:', delegationResult)
+    // Removed // Removed console log
     
     if (delegationResult) {
-      console.log('✅ SUCCESS: Delegation certificate extraction worked!')
+      // Removed // Removed console log
       expect(delegationResult.email).toBe('test.user@gmail.com')
     } else {
-      console.log('❌ FAILED: Delegation certificate extraction failed')
+      // Removed // Removed console log
     }
   })
   
   it('should test the complete delegation chain flow', async () => {
-    console.log('\n🔄 TESTING COMPLETE DELEGATION CHAIN FLOW')
+    // Removed // Removed console log
     
     // Create a mock identity with proper delegation structure
     const mockGoogleData = {
@@ -126,25 +126,25 @@ describe('Debug Certificate Extraction', () => {
     
     service['currentIdentity'] = mockIdentity
     
-    console.log('🎯 Mock identity delegation structure:', mockIdentity._delegation)
+    // Removed // Removed console log
     
     // Test the extraction
     const result = await service['extractDelegationChainData']()
-    console.log('📊 Delegation chain extraction result:', result)
+    // Removed // Removed console log
     
     if (result?.googleProfile) {
-      console.log('✅ SUCCESS: Found Google profile in delegation chain!')
-      console.log('📧 Email:', result.googleProfile.email)
-      console.log('👤 Name:', result.googleProfile.name)
+      // Removed // Removed console log
+      // Removed // Removed console log
+      // Removed // Removed console log
       expect(result.googleProfile.email).toBe('test.user@gmail.com')
     } else {
-      console.log('❌ FAILED: No Google profile found in delegation chain')
-      console.log('🔍 Raw result:', result)
+      // Removed // Removed console log
+      // Removed // Removed console log
     }
   })
   
   it('should test string extraction from binary data', () => {
-    console.log('\n📄 TESTING STRING EXTRACTION FROM BINARY DATA')
+    // Removed // Removed console log
     
     const testStrings = [
       'test@gmail.com',
@@ -154,14 +154,14 @@ describe('Debug Certificate Extraction', () => {
     ]
     
     const testData = new TextEncoder().encode(testStrings.join(' | '))
-    console.log('📦 Test data:', testData)
+    // Removed // Removed console log
     
     const extractedStrings = service['extractStringsFromBinary'](testData)
-    console.log('🔍 Extracted strings:', extractedStrings)
+    // Removed // Removed console log
     
     // Check if email was extracted
     const hasEmail = extractedStrings.some(s => s.includes('test@gmail.com'))
-    console.log('📧 Email found:', hasEmail)
+    // Removed // Removed console log
     
     expect(hasEmail).toBe(true)
   })

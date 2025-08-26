@@ -108,7 +108,7 @@ const ModelChat: React.FC = () => {
       // Send the message
       await sendLlmMessage(messageToSend);
     } catch (error) {
-      console.error('Failed to send message:', error);
+      // Removed console log
       // Error is handled in the context
     }
   };
@@ -117,7 +117,7 @@ const ModelChat: React.FC = () => {
     try {
       await createLlmConversation(QuantizedModel.Llama3_1_8B);
     } catch (error) {
-      console.error('Failed to create new chat:', error);
+      // Removed console log
     }
   };
 
@@ -177,7 +177,7 @@ const ModelChat: React.FC = () => {
                     }`}
                     onClick={() => {
                       // In a real implementation, this would switch conversations
-                      console.log('Switch to conversation:', conv.session_id);
+                      // Removed console log
                     }}
                   >
                     <div className="flex items-center gap-2">

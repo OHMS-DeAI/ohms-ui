@@ -48,13 +48,13 @@ const AdminCycleManager: React.FC<AdminCycleManagerProps> = ({ className = '' })
       const users = demoSubscriptionService.getAllUserSubscriptions()
       setAllUsers(users)
 
-      console.log('✅ Admin data loaded:', {
+      // Removed console log
         totalCycles: cycleData.totalCyclesAllocated,
         activeUsers: cycleData.activeUsers,
         userCount: users.length
       })
     } catch (err: any) {
-      console.error('❌ Failed to load admin data:', err)
+      // Removed console log
       setError(err.message || 'Failed to load admin data')
     } finally {
       setLoading(false)
@@ -83,7 +83,7 @@ const AdminCycleManager: React.FC<AdminCycleManagerProps> = ({ className = '' })
       // Refresh data
       await loadAdminData()
     } catch (err: any) {
-      console.error('❌ Failed to allocate cycles:', err)
+      // Removed console log
       setError(err.message || 'Failed to allocate cycles')
     } finally {
       setLoading(false)

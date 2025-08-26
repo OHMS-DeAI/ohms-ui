@@ -128,7 +128,7 @@ export class LlmService {
       try {
         callback(event);
       } catch (error) {
-        console.error('Error in LLM event listener:', error);
+        // Removed console log
       }
     });
   }
@@ -165,7 +165,7 @@ export class LlmService {
         data: { models: this.state.availableModels }
       });
     } catch (error) {
-      console.error('Failed to load available models:', error);
+      // Removed console log
       this.handleError(LlmError.InternalError, 'Failed to load models');
     }
   }
@@ -261,7 +261,7 @@ export class LlmService {
 
       const response = inferenceResponse.generated_text || '';
       if (!response) {
-        console.error('OHMS Agent response:', inferenceResponse);
+        // Removed console log
         throw new Error('OHMS Agent returned empty generated_text');
       }
 

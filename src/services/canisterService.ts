@@ -8,7 +8,7 @@ export const host = RESOLVED_HOST;
 export const agent = new HttpAgent({ host });
 if (NETWORK !== 'ic') {
   // Fetch the root key for local development to validate certificates
-  agent.fetchRootKey?.().catch(() => console.warn('fetchRootKey failed (local dev)'));
+  agent.fetchRootKey?.().catch(() => // Removed console log
 }
 
 // Canister IDs from env via network config
@@ -530,7 +530,7 @@ export const healthCheck = async () => {
       econ: econHealth.status === 'fulfilled' ? econHealth.value : 'Error',
     };
   } catch (error) {
-    console.error('Health check failed:', error);
+    // Removed console log
     throw error;
   }
 };
@@ -552,6 +552,168 @@ export const routeBestResult = async (req: {
   routing_mode: any;
 }, topK: number, windowMs: bigint) => {
   return coordinatorCanister.route_best_result(req, topK, windowMs);
+};
+
+// Agent Interaction Functions
+export const sendMessageToAgent = async (
+  agentId: string, 
+  message: string, 
+  capabilities?: string[]
+): Promise<any> => {
+  // Removed console log
+  
+  try {
+    // Get agent details first
+    const agentResult = await coordinatorCanister.get_agent(agentId);
+    
+    if ('Err' in agentResult) {
+      throw new Error(`Agent not found: ${agentResult.Err}`);
+    }
+    
+    const agent = agentResult.Ok;
+    // Removed console log
+    
+    // Create agent actor to communicate directly
+    const agentActor = createAgentActor();
+    
+    // Prepare inference request
+    const inferenceRequest = {
+      request_id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      prompt: message,
+      max_tokens: 500n,
+      temperature: 0.7,
+      model_config: {
+        model_id: agent.model_id || 'default',
+        version: '1.0.0',
+      },
+      capabilities: capabilities || [],
+    };
+    
+    // Removed console log
+    
+    // Send inference request
+    const result = await agentActor.infer(inferenceRequest);
+    
+    if ('Ok' in result) {
+      // Removed console log
+      return {
+        success: true,
+        agentId,
+        response: result.Ok.response_text || result.Ok.content || 'Response received',
+        metadata: result.Ok
+      };
+    } else {
+      // Removed console log
+      throw new Error(`Agent inference failed: ${result.Err}`);
+    }
+    
+  } catch (error) {
+    // Removed console log
+    throw error;
+  }
+};
+
+// Bind agent and wire inference routes
+export const bindAgentAndWireRoutes = async (
+  agentId: string,
+  modelId: string
+): Promise<any> => {
+  // Removed console log
+  
+  try {
+    // Create agent actor
+    const agentActor = createAgentActor();
+    
+    // Bind the model to the agent
+    const bindResult = await agentActor.bind_model(modelId);
+    
+    if ('Err' in bindResult) {
+      throw new Error(`Failed to bind model: ${bindResult.Err}`);
+    }
+    
+    // Removed console log
+    
+    // Update agent status to active
+    await updateAgentStatus(agentId, 'active');
+    
+    return {
+      success: true,
+      agentId,
+      modelId,
+      status: 'active',
+      message: 'Agent bound and routes wired successfully'
+    };
+    
+  } catch (error) {
+    // Removed console log
+    throw error;
+  }
+};
+
+// Execute coordinator workflow
+export const executeCoordinatorWorkflow = async (
+  workflow: any
+): Promise<any> => {
+  // Removed console log
+  
+  try {
+    const results = [];
+    
+    // Process each node in the workflow
+    for (const node of workflow.nodes) {
+      if (node.type === 'agent' && node.data.config?.instructions) {
+        // Removed console log
+        
+        // Create agent if not already created
+        let agentId = node.data.config.agentId;
+        if (!agentId) {
+          const agentResult = await createAgentsFromInstructions(
+            node.data.config.instructions,
+            1,
+            node.data.config.capabilities || [],
+            node.data.config.priority || 'normal'
+          );
+          
+          if ('Ok' in agentResult) {
+            agentId = agentResult.Ok.agent_id;
+          } else {
+            throw new Error(`Failed to create agent: ${agentResult.Err}`);
+          }
+        }
+        
+        // Bind agent and wire routes
+        await bindAgentAndWireRoutes(agentId, 'default');
+        
+        // Test agent communication
+        const testMessage = `Execute task: ${node.data.config.instructions}`;
+        const response = await sendMessageToAgent(
+          agentId, 
+          testMessage, 
+          node.data.config.capabilities
+        );
+        
+        results.push({
+          nodeId: node.id,
+          agentId,
+          response: response.response,
+          status: 'completed'
+        });
+        
+        // Removed console log
+      }
+    }
+    
+    return {
+      success: true,
+      workflowId: workflow.id,
+      results,
+      message: 'Workflow executed successfully'
+    };
+    
+  } catch (error) {
+    // Removed console log
+    throw error;
+  }
 };
 
 // Helpers
@@ -580,7 +742,7 @@ export const listAgents = async (agentOverride?: HttpAgent): Promise<any[]> => {
   if ('Ok' in res && res.Ok) {
     return res.Ok;
   } else {
-    console.error('Failed to list agents:', res.Err);
+    // Removed console log
     throw new Error(res.Err || 'Unknown error');
   }
 };
@@ -609,7 +771,7 @@ export const listUserAgents = async (agentOverride?: HttpAgent): Promise<any[]> 
   if ('Ok' in res && res.Ok) {
     return res.Ok;
   } else {
-    console.error('Failed to list user agents:', res.Err);
+    // Removed console log
     throw new Error(res.Err || 'Unknown error');
   }
 };

@@ -75,7 +75,7 @@ class SecurityAuditor {
   private currentTest: string = ''
 
   public async performFullAudit(): Promise<SecurityAuditResult> {
-    console.log('🔒 Starting OHMS 2.0 Security Audit...')
+    // Removed console log
     
     this.issues = []
     
@@ -92,7 +92,7 @@ class SecurityAuditor {
   }
 
   private async auditAuthentication(): Promise<void> {
-    console.log('🔐 Auditing Authentication Security...')
+    // Removed console log
     
     // Check Internet Identity v2 configuration
     this.checkIIv2Configuration()
@@ -260,7 +260,7 @@ class SecurityAuditor {
   }
 
   private async auditPaymentSecurity(): Promise<void> {
-    console.log('💳 Auditing Payment Security...')
+    // Removed console log
     
     this.checkStripeConfiguration()
     this.checkPaymentDataHandling()
@@ -410,7 +410,7 @@ class SecurityAuditor {
   }
 
   private async auditDataPrivacy(): Promise<void> {
-    console.log('🔐 Auditing Data Privacy...')
+    // Removed console log
     
     this.checkGDPRCompliance()
     this.checkDataRetention()
@@ -491,7 +491,7 @@ class SecurityAuditor {
   }
 
   private async auditInputValidation(): Promise<void> {
-    console.log('🛡️ Auditing Input Validation...')
+    // Removed console log
     
     this.checkFormValidation()
     this.checkAPIInputValidation()
@@ -575,7 +575,7 @@ class SecurityAuditor {
   }
 
   private async auditApiSecurity(): Promise<void> {
-    console.log('🌐 Auditing API Security...')
+    // Removed console log
     
     this.checkRateLimiting()
     this.checkAPIAuthentication()
@@ -658,7 +658,7 @@ class SecurityAuditor {
   }
 
   private async auditSessionManagement(): Promise<void> {
-    console.log('🔑 Auditing Session Management...')
+    // Removed console log
     
     this.checkSessionTimeout()
     this.checkSessionInvalidation()
@@ -714,7 +714,7 @@ class SecurityAuditor {
   }
 
   private async auditErrorHandling(): Promise<void> {
-    console.log('⚠️ Auditing Error Handling...')
+    // Removed console log
     
     this.checkErrorInformationDisclosure()
     this.checkErrorLogging()
@@ -773,7 +773,7 @@ class SecurityAuditor {
 
   private addIssue(issue: SecurityIssue): void {
     this.issues.push(issue)
-    console.log(`  ⚠️ ${issue.level.toUpperCase()}: ${issue.title}`)
+    // Removed console log
   }
 
   private isValidCanisterId(canisterId: string): boolean {

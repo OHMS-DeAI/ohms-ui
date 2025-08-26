@@ -127,7 +127,7 @@ export const NOVAQMetrics: React.FC = () => {
       setNovaqData(novaqData)
       setLastUpdate(new Date())
     } catch (error) {
-      console.error('Failed to fetch NOVAQ metrics:', error)
+      // Removed console log
       // Fallback to empty state instead of mock data
       setNovaqData({
         total_models: 0,

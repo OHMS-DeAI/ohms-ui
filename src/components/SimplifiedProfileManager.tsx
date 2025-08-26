@@ -20,7 +20,7 @@ export const SimplifiedProfileManager: React.FC<SimplifiedProfileManagerProps> =
       await disconnect()
       onClose()
     } catch (error) {
-      console.error('Failed to sign out:', error)
+      // Removed console log
     }
   }
 

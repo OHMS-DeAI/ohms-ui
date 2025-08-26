@@ -200,7 +200,7 @@ export const RealTimePerformanceMonitor: React.FC = () => {
         setAlerts(mockAlerts)
         setLoading(false)
       } catch (error) {
-        console.error('Failed to fetch performance metrics:', error)
+        // Removed console log
         setLoading(false)
       }
     }

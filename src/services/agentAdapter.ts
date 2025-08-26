@@ -52,7 +52,7 @@ export class AgentAdapter implements HttpAgent {
       // Use wrapped agent's call method
       return await this.wrappedAgent.call(canisterPrincipal, options)
     } catch (error) {
-      console.error('Agent adapter call failed:', error)
+      // Removed console log
       throw error
     }
   }
@@ -87,7 +87,7 @@ export class AgentAdapter implements HttpAgent {
         requestId: new Uint8Array(0) as RequestId
       }
     } catch (error) {
-      console.error('Agent adapter query failed:', error)
+      // Removed console log
       throw error
     }
   }
@@ -110,7 +110,7 @@ export class AgentAdapter implements HttpAgent {
         timestamp: Date.now()
       }
     } catch (error) {
-      console.error('Agent adapter status check failed:', error)
+      // Removed console log
       throw error
     }
   }
@@ -126,7 +126,7 @@ export class AgentAdapter implements HttpAgent {
       this.rootKey = rootKey instanceof ArrayBuffer ? new Uint8Array(rootKey) : rootKey
       return this.rootKey
     } catch (error) {
-      console.error('Agent adapter root key fetch failed:', error)
+      // Removed console log
       throw error
     }
   }

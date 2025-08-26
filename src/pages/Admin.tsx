@@ -67,7 +67,7 @@ const Admin = () => {
         }
         setAuthChecked(true)
       } catch (error) {
-        console.error('Failed to check admin status:', error)
+        // Removed console log
         setAuthChecked(true)
       }
     }
@@ -140,7 +140,7 @@ const Admin = () => {
 
       setHealth({ model: 'OK', agent: ah, coordinator: ch, econ: eh })
     } catch (e: any) {
-      console.error(e)
+      // Removed console log
       setError(e?.message || 'Failed to load admin data')
     } finally {
       setLoading(false)

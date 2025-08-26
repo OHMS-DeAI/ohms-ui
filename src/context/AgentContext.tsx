@@ -118,7 +118,7 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
   useEffect(() => {
     const initializeII = async () => {
       try {
-        console.log('🔄 Initializing Internet Identity v2 integration...')
+        // Initialize Internet Identity v2
         const initialized = await internetIdentityService.initialize()
         setIsWalletAvailable(true)
         
@@ -131,11 +131,11 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
             setUserProfile(userProfile)
             setIsConnected(true)
             storeConnection(authStatus.principal!, userProfile)
-            console.log('✅ Restored II v2 session for:', authStatus.principal)
+            // Restored session
           }
         }
       } catch (error) {
-        console.error('❌ Failed to initialize II v2:', error)
+        // Failed to initialize
         setIsWalletAvailable(false)
       }
     }
@@ -178,16 +178,15 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
 
       checkAdminStatus().then(isAdminUser => {
         if (isAdminUser) {
-          console.log(`🔑 Admin access GRANTED for: ${principal} on ${CURRENT_NETWORK} network`)
-          console.log(`📊 Total configured admins: ${ADMIN_PRINCIPALS.length}`)
+          // Admin access granted - logging removed for security
           refreshAdminData()
         } else {
-          console.log(`👤 Regular user access for: ${principal} on ${CURRENT_NETWORK} network`)
+          // Regular user access - logging removed for security
         }
       })
     } else {
       // Clear admin status when no principal
-      console.log('🚪 User disconnected - clearing admin status')
+      // User disconnected - clearing admin status
       setIsAdmin(false)
       setAdminData(null)
     }
@@ -199,7 +198,7 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     setConnectionError(null)
     
     try {
-      console.log('🔗 Starting Internet Identity v2 authentication...')
+      // Starting authentication
       
       // Authenticate with II v2
       const authResult = await internetIdentityService.authenticate(true) // Prefer Google
@@ -222,19 +221,14 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       setConnectionError(null)
       storeConnection(principalString, userProfile)
 
-      console.log('✅ II v2 authentication successful:', {
-        principal: principalString,
-        name: userProfile.name,
-        hasGoogleAccount: !!userProfile.googleAccount,
-        email: userProfile.email
-      })
+      // II v2 authentication successful - logging removed for security
       
       return true
     } catch (error) {
       const walletError = classifyWalletError(error)
       const friendlyMessage = getUserFriendlyErrorMessage(walletError)
       
-      console.error('❌ II v2 authentication failed:', friendlyMessage)
+      // Authentication failed
       setIsConnected(false)
       setConnectionError(walletError)
       throw walletError
@@ -265,10 +259,10 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         await agent.fetchRootKey()
       }
 
-      console.log('✅ Created authenticated agent for:', principal)
+      // Created authenticated agent
       return agent
     } catch (error) {
-      console.error('❌ Failed to create authenticated agent:', error)
+      // Failed to create agent
       throw error
     }
   }
@@ -284,7 +278,7 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       return null
     } catch (error) {
       const walletError = classifyWalletError(error)
-      console.error('Failed to get principal:', getUserFriendlyErrorMessage(walletError))
+      // Failed to get principal
       setConnectionError(walletError)
       return null
     }
@@ -295,7 +289,7 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       // Sign out from II v2 service
       await internetIdentityService.signOut()
     } catch (error) {
-      console.warn('⚠️ Error signing out from II v2:', error)
+      // Error signing out
     }
     
     setPrincipal(null)
@@ -306,7 +300,7 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     setConnectionError(null)
     clearStoredConnection()
     
-    console.log('🚪 Disconnected from Internet Identity v2')
+    // Disconnected
   }
 
   const clearConnectionError = () => {
@@ -325,7 +319,7 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       }))
       return conversation
     } catch (error) {
-      console.error('Failed to create LLM conversation:', error)
+      // Failed to create LLM conversation
       throw error
     }
   }
@@ -346,7 +340,7 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         isLoading: false,
       }))
     } catch (error) {
-      console.error('Failed to send LLM message:', error)
+      // Failed to send LLM message
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       setLlmState(prev => ({
         ...prev,
@@ -371,7 +365,7 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         }))
       }
     } catch (error) {
-      console.error('Failed to switch LLM model:', error)
+      // Failed to switch LLM model
       throw error
     }
   }
@@ -392,7 +386,7 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         }
       })
     } catch (error) {
-      console.error('Failed to delete LLM conversation:', error)
+      // Failed to delete conversation
       throw error
     }
   }
@@ -410,15 +404,9 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       
       // Comprehensive logging
       const logLevel = adminStatusInfo.isAdmin ? 'log' : 'info'
-      console.group(`🔐 OHMS Admin Check - ${adminStatusInfo.isAdmin ? '✅ ADMIN' : '👤 USER'}`)
-      console[logLevel]('Principal ID:', adminStatusInfo.principalId)
-      console[logLevel]('Normalized ID:', adminStatusInfo.normalizedId)
-      console[logLevel]('Network:', adminStatusInfo.network)
-      console[logLevel]('Admin Count:', adminStatusInfo.adminCount)
-      if (adminStatusInfo.matchedAdmin) {
-        console[logLevel]('Matched Admin:', adminStatusInfo.matchedAdmin)
-      }
-      console.groupEnd()
+      // Admin Check - Status determined
+      // Admin status details logged
+      // End admin check
       
       // Debug admin configuration in development or when debug is enabled
       if (import.meta.env.DEV || import.meta.env.VITE_ADMIN_DEBUG === 'true') {
@@ -427,7 +415,7 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       
       return adminStatusInfo.isAdmin
     } catch (error) {
-      console.error('❌ Failed to check admin status:', error)
+      // Failed to check admin status
       setIsAdmin(false)
       return false
     }
@@ -435,11 +423,11 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
 
   const initializeServices = async () => {
     try {
-      console.log('🔄 Initializing services with agent canister...')
+      // Initializing services
       
       const authAgent = await createAuthAgent()
       if (!authAgent) {
-        console.warn('⚠️ No authenticated agent available for service initialization')
+        // No authenticated agent available
         return
       }
 
@@ -461,9 +449,9 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       // Initialize LLM service with agent canister
       const llmServiceInstance = getLlmService()
       await llmServiceInstance.initialize(agentActor)
-      console.log('✅ Services initialized successfully')
+      // Services initialized
     } catch (error) {
-      console.error('❌ Failed to initialize services:', error)
+      // Failed to initialize services
     }
   }
 
@@ -471,11 +459,11 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     if (!isAdmin) return
     
     try {
-      console.log('🔄 Refreshing admin data with II v2 agent...')
+      // Refreshing admin data
       const { createModelActor, createAgentActor, createCoordinatorActor, createEconActor } = await import('../services/canisterService')
       const authAgent = await createAuthAgent()
       if (!authAgent) {
-        console.warn('⚠️ No authenticated agent available for admin data refresh')
+        // No authenticated agent available
         return
       }
       
@@ -512,9 +500,9 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         econHealth
       })
 
-      console.log('✅ Admin data refreshed successfully')
+      // Admin data refreshed
     } catch (error) {
-      console.error('❌ Failed to refresh admin data:', error)
+      // Failed to refresh admin data
     }
   }
 

@@ -17,7 +17,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   useEffect(() => {
     // If user is not connected and not connecting, show auth modal
     if (!isConnecting && !isConnected && location.pathname !== '/') {
-      console.log('🔒 Protected route access requires authentication')
+      // Removed console log
       setShowAuthModal(true)
     } else if (isConnected) {
       setShowAuthModal(false)

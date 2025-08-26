@@ -197,7 +197,7 @@ export class MarketDataService {
       // Fetch fresh data
       await this.updateMarketData()
     } catch (error) {
-      console.error('Failed to initialize market data service:', error)
+      // Removed console log
     }
   }
 
@@ -213,7 +213,7 @@ export class MarketDataService {
       try {
         await this.updateMarketData()
       } catch (error) {
-        console.error('Auto-refresh failed:', error)
+        // Removed console log
       }
     }, this.config.refreshInterval)
   }
@@ -245,7 +245,7 @@ export class MarketDataService {
     this.isUpdating = true
 
     try {
-      console.log('🔄 Updating ICP market data...')
+      // Removed console log
       
       // Try endpoints in priority order
       for (const endpoint of this.endpoints.sort((a, b) => a.priority - b.priority)) {
@@ -257,7 +257,7 @@ export class MarketDataService {
             this.addToHistory(data)
             this.notifyListeners(data)
             
-            console.log('✅ Market data updated:', {
+            // Removed console log
               price: data.priceUSD,
               change24h: data.change24h.toFixed(2) + '%',
               source: data.source,
@@ -267,13 +267,13 @@ export class MarketDataService {
             return data
           }
         } catch (error) {
-          console.warn(`Failed to fetch from ${endpoint.name}:`, error)
+          // Removed console log
           continue
         }
       }
 
       // If all endpoints fail, use fallback
-      console.warn('⚠️ All market data sources failed, using fallback price')
+      // Removed console log
       const fallback = this.endpoints.find(e => e.name === 'Fallback')!
       const fallbackData = fallback.parser({})
       
@@ -374,7 +374,7 @@ export class MarketDataService {
         timestamp: data.timestamp.toISOString()
       }))
     } catch (error) {
-      console.warn('Failed to save market data to storage:', error)
+      // Removed console log
     }
   }
 
@@ -392,7 +392,7 @@ export class MarketDataService {
         timestamp: new Date(data.timestamp)
       }
     } catch (error) {
-      console.warn('Failed to load market data from storage:', error)
+      // Removed console log
       return null
     }
   }
@@ -405,7 +405,7 @@ export class MarketDataService {
       try {
         listener(data)
       } catch (error) {
-        console.error('Market data listener error:', error)
+        // Removed console log
       }
     })
   }
@@ -524,7 +524,7 @@ export class MarketDataService {
         try {
           return await this.fetchFromEndpoint(endpoint)
         } catch (error) {
-          console.error(`Failed to refresh from ${sourceName}:`, error)
+          // Removed console log
           return null
         }
       }

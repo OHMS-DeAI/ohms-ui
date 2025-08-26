@@ -111,7 +111,7 @@ const Agents = () => {
         status: 'online',
       })))
     } catch (err: any) {
-      console.error('Failed to fetch agents:', err)
+      // Removed console log
       setError(err.message || 'Failed to fetch agents')
       setAgents([])
     } finally {
@@ -175,7 +175,7 @@ const Agents = () => {
       // Real inference will go via agent canister once bound.
       setError('Inference route not wired yet. Bind agent and use coordinator route in next step.')
     } catch (err) {
-      console.error('Failed to send message:', err)
+      // Removed console log
     } finally {
       setIsSending(false)
     }

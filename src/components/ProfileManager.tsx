@@ -81,17 +81,17 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ isOpen, onClose 
           setProfile(userProfile)
           setProfileStats(stats)
           updateFormFromProfile(userProfile)
-          console.log('✅ Profile loaded:', userProfile.username)
+          // Removed console log
         }
       } else {
         // No profile exists
         setProfile(null)
         setProfileStats(null)
         resetForm()
-        console.log('📭 No profile found for user')
+        // Removed console log
       }
     } catch (err) {
-      console.error('❌ Failed to load profile:', err)
+      // Removed console log
       setError(`Failed to load profile: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setIsLoading(false)
@@ -153,7 +153,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ isOpen, onClose 
         const availability = await profileService.checkUsernameAvailability(agent, formData.username)
         setUsernameStatus({ checking: false, availability })
       } catch (err) {
-        console.warn('⚠️ Failed to check username availability:', err)
+        // Removed console log
         setUsernameStatus({ checking: false, availability: null })
       }
     }, 500) // 500ms debounce
@@ -246,9 +246,9 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ isOpen, onClose 
       await loadProfile() // Reload profile data
       setIsEditing(false)
       
-      console.log('✅ Profile created and preferences updated')
+      // Removed console log
     } catch (err) {
-      console.error('❌ Failed to create profile:', err)
+      // Removed console log
       setError(`Failed to create profile: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setIsLoading(false)
@@ -291,9 +291,9 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ isOpen, onClose 
       await loadProfile() // Reload profile data
       setIsEditing(false)
       
-      console.log('✅ Profile updated successfully')
+      // Removed console log
     } catch (err) {
-      console.error('❌ Failed to update profile:', err)
+      // Removed console log
       setError(`Failed to update profile: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setIsLoading(false)
@@ -326,9 +326,9 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ isOpen, onClose 
       resetForm()
       setIsEditing(false)
       
-      console.log('✅ Profile deleted successfully')
+      // Removed console log
     } catch (err) {
-      console.error('❌ Failed to delete profile:', err)
+      // Removed console log
       setError(`Failed to delete profile: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setIsLoading(false)

@@ -46,7 +46,7 @@ const Verify = () => {
         setVerification(null)
       }
     } catch (err: any) {
-      console.error('Failed to verify manifest:', err)
+      // Removed console log
       setError(err.message || 'Failed to verify manifest')
       setVerification(null)
     } finally {
@@ -75,7 +75,7 @@ const Verify = () => {
         }
       })
     } catch (err: any) {
-      console.error('Failed to verify receipt:', err)
+      // Removed console log
       setError(err.message || 'Failed to verify receipt')
       setVerification(null)
     } finally {

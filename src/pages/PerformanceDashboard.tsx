@@ -114,7 +114,7 @@ export const PerformanceDashboard: React.FC = () => {
         setAnalytics(mockAnalytics)
         setLastUpdate(new Date())
       } catch (error) {
-        console.error('Failed to fetch analytics:', error)
+        // Removed console log
       }
     }
 
@@ -145,7 +145,7 @@ export const PerformanceDashboard: React.FC = () => {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch (error) {
-      console.error('Failed to export metrics:', error)
+      // Removed console log
     } finally {
       setExportLoading(false)
     }

@@ -74,7 +74,7 @@ export const isAdminPrincipal = (principalId: string): boolean => {
   })
   
   if (import.meta.env.VITE_ADMIN_DEBUG === 'true') {
-    console.log(`🔍 Admin Check Debug:`, {
+    // Removed console log
       input: principalId,
       normalized: normalizedInput,
       adminList: ADMIN_PRINCIPALS,
@@ -92,17 +92,17 @@ export const isAdminPrincipal = (principalId: string): boolean => {
  */
 export const addAdminPrincipal = (principalId: string): boolean => {
   if (!principalId || !isValidPrincipalId(principalId)) {
-    console.warn('Invalid Principal ID provided:', principalId)
+    // Removed console log
     return false
   }
   
   if (isAdminPrincipal(principalId)) {
-    console.log('Principal ID already has admin access:', principalId)
+    // Removed console log
     return true
   }
   
   ADMIN_PRINCIPALS.push(principalId.trim())
-  console.log('✅ Added admin access for:', principalId)
+  // Removed console log
   return true
 }
 
@@ -118,11 +118,11 @@ export const removeAdminPrincipal = (principalId: string): boolean => {
   
   if (index > -1) {
     const removed = ADMIN_PRINCIPALS.splice(index, 1)
-    console.log('❌ Removed admin access for:', removed[0])
+    // Removed console log
     return true
   }
   
-  console.warn('Principal ID not found in admin list:', principalId)
+  // Removed console log
   return false
 }
 
@@ -138,14 +138,14 @@ export const getAdminPrincipalsList = (): readonly string[] => {
  */
 export const debugAdminConfig = (): void => {
   if (import.meta.env.DEV || import.meta.env.VITE_ADMIN_DEBUG === 'true') {
-    console.group('🔐 OHMS Admin Configuration')
-    console.log('Current Network:', CURRENT_NETWORK)
-    console.log('Admin Principals:', ADMIN_PRINCIPALS)
-    console.log('VITE_ADMIN_PRINCIPALS:', import.meta.env.VITE_ADMIN_PRINCIPALS)
-    console.log('VITE_SYSADMINS (legacy):', import.meta.env.VITE_SYSADMINS)
-    console.log('Total Admin Count:', ADMIN_PRINCIPALS.length)
-    console.log('Debug Mode:', import.meta.env.VITE_ADMIN_DEBUG)
-    console.groupEnd()
+    // Admin Configuration Debug
+    // Removed console log
+    // Removed console log
+    // Removed console log
+    // Removed console log
+    // Removed console log
+    // Removed console log
+    // End debug
   }
 }
 

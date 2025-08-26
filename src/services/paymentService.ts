@@ -90,7 +90,7 @@ export class PaymentService {
         throw new Error(result.Err || 'Failed to get ICP/USD rate')
       }
     } catch (error) {
-      console.error('Failed to get ICP/USD rate:', error)
+      // Removed console log
       throw error
     }
   }
@@ -109,7 +109,7 @@ export class PaymentService {
         throw new Error(result.Err || 'Failed to convert USD to ICP')
       }
     } catch (error) {
-      console.error('Failed to convert USD to ICP:', error)
+      // Removed console log
       throw error
     }
   }
@@ -134,7 +134,7 @@ export class PaymentService {
         throw new Error(result.Err || 'Failed to create payment request')
       }
     } catch (error) {
-      console.error('Failed to create payment request:', error)
+      // Removed console log
       throw error
     }
   }
@@ -159,7 +159,7 @@ export class PaymentService {
         throw new Error(result.Err || 'Payment processing failed')
       }
     } catch (error) {
-      console.error('Failed to process payment:', error)
+      // Removed console log
       throw error
     }
   }
@@ -183,7 +183,7 @@ export class PaymentService {
         throw new Error(result.Err || 'Failed to verify payment')
       }
     } catch (error) {
-      console.error('Failed to verify payment:', error)
+      // Removed console log
       throw error
     }
   }
@@ -201,7 +201,7 @@ export class PaymentService {
       }
       return null
     } catch (error) {
-      console.error('Failed to get payment transaction:', error)
+      // Removed console log
       return null
     }
   }
@@ -216,7 +216,7 @@ export class PaymentService {
       
       return result.map(tx => this.mapPaymentTransaction(tx))
     } catch (error) {
-      console.error('Failed to list payment transactions:', error)
+      // Removed console log
       return []
     }
   }
@@ -238,7 +238,7 @@ export class PaymentService {
         total_revenue_icp_e8s: BigInt(result.total_revenue_icp_e8s),
       }
     } catch (error) {
-      console.error('Failed to get payment stats:', error)
+      // Removed console log
       throw error
     }
   }
@@ -253,7 +253,7 @@ export class PaymentService {
       
       return result.map(tx => this.mapPaymentTransaction(tx))
     } catch (error) {
-      console.error('Failed to list all payment transactions:', error)
+      // Removed console log
       return []
     }
   }
@@ -295,7 +295,7 @@ export class PaymentService {
         return { success: true, transaction }
       }
     } catch (error) {
-      console.error('Subscription payment failed:', error)
+      // Removed console log
       
       // Provide specific error messages for common issues
       let errorMessage = 'Unknown payment error'
@@ -333,7 +333,7 @@ export class PaymentService {
         return transaction
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error))
-        console.warn(`Payment attempt ${attempt + 1} failed:`, lastError.message)
+        // Removed console log
         
         // Don't retry on certain errors
         if (lastError.message.includes('cancelled') || lastError.message.includes('unauthorized')) {

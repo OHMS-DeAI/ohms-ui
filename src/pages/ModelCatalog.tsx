@@ -78,7 +78,7 @@ const ModelCatalog = () => {
 
       setModels(enrichedModels)
       } catch (err: any) {
-        console.error('Failed to fetch models:', err)
+        // Removed console log
         setError(err.message || 'Failed to fetch models')
         setModels([])
       } finally {

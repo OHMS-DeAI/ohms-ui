@@ -66,7 +66,7 @@ const AdminNovaq = () => {
         setIsAdmin(admin || hasAdminRole)
         setAuthChecked(true)
       } catch (error) {
-        console.error('Failed to check admin status:', error)
+        // Removed console log
         setAuthChecked(true)
       }
     }
@@ -119,7 +119,7 @@ const AdminNovaq = () => {
       })
 
     } catch (e: any) {
-      console.error(e)
+      // Removed console log
       setError(e?.message || 'Failed to load platform data')
     } finally {
       setLoading(false)

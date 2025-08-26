@@ -40,7 +40,7 @@ const StarterPacks = () => {
       // For now, keep empty until real API is implemented
       setStarterPacks([])
     } catch (error) {
-      console.error('Failed to fetch starter packs:', error)
+      // Removed console log
     } finally {
       setLoading(false)
     }

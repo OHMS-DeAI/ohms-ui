@@ -70,8 +70,8 @@ export class InternetIdentityService {
    */
   async initialize(): Promise<boolean> {
     try {
-      console.log('🔐 Initializing Internet Identity v2...')
-      console.log('📍 II v2 Host:', this.config.host)
+      // Removed console log
+      // Removed console log
       
       // Create auth client
       this.authClient = await AuthClient.create({
@@ -94,17 +94,17 @@ export class InternetIdentityService {
         // Get cached user profile or create basic one
         this.currentUser = await this.getUserProfile(principalString)
         
-        console.log('✅ User already authenticated with II v2:', {
+        // Removed console log
           principal: principalString,
           isAnonymous: principal.isAnonymous()
         })
         return true
       }
 
-      console.log('📝 User not authenticated, ready for login')
+      // Removed console log
       return false
     } catch (error) {
-      console.error('❌ Failed to initialize II v2:', error)
+      // Removed console log
       return false
     }
   }
@@ -122,8 +122,8 @@ export class InternetIdentityService {
         }
       }
 
-      console.log('🔗 Starting II v2 authentication...')
-      console.log('🎯 Preference:', preferGoogle ? 'Google OAuth' : 'Passkey')
+      // Removed console log
+      // Removed console log
 
       // Configure authentication options
       const authOptions = {
@@ -137,10 +137,10 @@ export class InternetIdentityService {
           width=600,height=800
         `.replace(/\s+/g, ''),
         onSuccess: () => {
-          console.log('✅ II v2 authentication window closed successfully')
+          // Removed console log
         },
         onError: (error?: string) => {
-          console.error('❌ II v2 authentication window error:', error)
+          // Removed console log
         }
       }
 
@@ -170,7 +170,7 @@ export class InternetIdentityService {
 
       // Check if it's anonymous (shouldn't be with II v2)
       if (principal.isAnonymous()) {
-        console.warn('⚠️ Received anonymous identity from II v2')
+        // Removed console log
       }
 
       // Create HTTP agent
@@ -188,7 +188,7 @@ export class InternetIdentityService {
       const userProfile = await this.getUserProfile(principalString)
       this.currentUser = userProfile
 
-      console.log('✅ II v2 authentication successful:', {
+      // Removed console log
         principal: principalString,
         isAnonymous: principal.isAnonymous(),
         hasGoogleAccount: !!userProfile.googleAccount,
@@ -204,7 +204,7 @@ export class InternetIdentityService {
       }
 
     } catch (error) {
-      console.error('❌ II v2 authentication failed:', error)
+      // Removed console log
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Authentication failed'
@@ -226,7 +226,7 @@ export class InternetIdentityService {
       const googleAccount = await this.extractGoogleAccountInfo()
 
       if (googleAccount) {
-        console.log('📧 Real Google account data found:', {
+        // Removed console log
           email: googleAccount.email,
           name: googleAccount.name,
           verified: googleAccount.verified
@@ -243,7 +243,7 @@ export class InternetIdentityService {
       }
 
       // CRITICAL FIX: When no Google profile is available, create a basic profile without fake data
-      console.log('👤 No Google profile data available - creating basic II v2 profile')
+      // Removed console log
       return {
         principal,
         name: isAnonymous ? 'Anonymous User' : `User ${principal.slice(0, 8)}...`,
@@ -255,7 +255,7 @@ export class InternetIdentityService {
       }
 
     } catch (error) {
-      console.warn('⚠️ Failed to get user metadata, using basic profile:', error)
+      // Removed console log
       return {
         principal,
         name: `User ${principal.slice(0, 8)}...`,
@@ -274,35 +274,35 @@ export class InternetIdentityService {
    */
   private async extractGoogleAccountInfo(): Promise<GoogleAccountInfo | null> {
     try {
-      console.log('🔍 REALITY CHECK: II v2 delegation chains do not contain Google profile data')
-      console.log('💡 Implementing optional Google profile linking instead...')
+      // Removed console log
+      // Removed console log
       
       // Check if we have authenticated identity
       if (!this.authClient || !this.currentIdentity) {
-        console.warn('⚠️ No authenticated identity available')
+        // Removed console log
         return null
       }
 
       // ARCHITECTURAL REALITY: II v2 certificates only contain cryptographic data
       // The binary data in your logs (Uint8Array with pubkey) is authentication data, not profile data
-      console.log('✅ II v2 authentication successful - certificates contain auth data only')
+      // Removed console log
       
       // Option 1: Check if user previously linked Google profile (stored locally or in canister)
       const cachedProfile = await this.getCachedGoogleProfile()
       if (cachedProfile) {
-        console.log('✅ Found cached Google profile from previous linking')
+        // Removed console log
         return cachedProfile
       }
       
       // Option 2: Offer Google profile linking (separate OAuth flow)
-      console.log('💡 No Google profile found - user can optionally link Google account')
-      console.log('🔗 Call linkGoogleProfile() to initiate separate Google OAuth flow')
+      // Removed console log
+      // Removed console log
       
       // Return null - no Google profile data from II v2 (this is correct!)
       return null
       
     } catch (error) {
-      console.log('✅ Expected behavior: II v2 provides authentication only, not profile data')
+      // Removed console log
       return null
     }
   }
@@ -322,7 +322,7 @@ export class InternetIdentityService {
       const cached = localStorage.getItem(`google_profile_${principalText}`)
       if (cached) {
         const profile = JSON.parse(cached)
-        console.log('✅ Found cached Google profile in localStorage')
+        // Removed console log
         return profile
       }
       
@@ -331,7 +331,7 @@ export class InternetIdentityService {
       
       return null
     } catch (error) {
-      console.warn('⚠️ Failed to get cached Google profile:', error)
+      // Removed console log
       return null
     }
   }
@@ -346,7 +346,7 @@ export class InternetIdentityService {
         throw new Error('Must be authenticated with II v2 before linking Google profile')
       }
 
-      console.log('🔗 Starting separate Google OAuth flow for profile linking...')
+      // Removed console log
       
       // Google OAuth 2.0 configuration
       const googleConfig = {
@@ -356,8 +356,8 @@ export class InternetIdentityService {
       }
 
       if (!googleConfig.clientId) {
-        console.error('❌ Google Client ID not configured in environment variables')
-        console.log('💡 Add VITE_GOOGLE_CLIENT_ID to .env file to enable Google profile linking')
+        // Removed console log
+        // Removed console log
         return null
       }
 
@@ -369,7 +369,7 @@ export class InternetIdentityService {
       googleAuthUrl.searchParams.set('scope', googleConfig.scope)
       googleAuthUrl.searchParams.set('state', await this.currentIdentity.getPrincipal().then(p => p.toText()))
 
-      console.log('🔗 Opening Google OAuth window...')
+      // Removed console log
       
       // Open popup for Google OAuth
       const popup = window.open(
@@ -398,12 +398,12 @@ export class InternetIdentityService {
             window.removeEventListener('message', messageListener)
             popup?.close()
             
-            console.log('✅ Google profile linked successfully:', googleProfile)
+            // Removed console log
             resolve(googleProfile)
           } else if (event.data.type === 'GOOGLE_OAUTH_ERROR') {
             window.removeEventListener('message', messageListener)
             popup?.close()
-            console.error('❌ Google OAuth failed:', event.data.error)
+            // Removed console log
             resolve(null)
           }
         }
@@ -421,7 +421,7 @@ export class InternetIdentityService {
       })
 
     } catch (error) {
-      console.error('❌ Failed to initiate Google profile linking:', error)
+      // Removed console log
       return null
     }
   }
@@ -440,9 +440,9 @@ export class InternetIdentityService {
       localStorage.setItem(`google_profile_${principalText}`, JSON.stringify(profile))
       
       // TODO: Store in canister for persistent linking across devices
-      console.log('✅ Google profile cached for principal:', principalText)
+      // Removed console log
     } catch (error) {
-      console.warn('⚠️ Failed to cache Google profile:', error)
+      // Removed console log
     }
   }
 
@@ -460,9 +460,9 @@ export class InternetIdentityService {
       localStorage.removeItem(`google_profile_${principalText}`)
       
       // TODO: Remove from canister storage
-      console.log('✅ Google profile unlinked for principal:', principalText)
+      // Removed console log
     } catch (error) {
-      console.warn('⚠️ Failed to unlink Google profile:', error)
+      // Removed console log
     }
   }
   
@@ -486,16 +486,16 @@ export class InternetIdentityService {
   private async extractDelegationChainData(): Promise<{ googleProfile: GoogleAccountInfo } | null> {
     try {
       if (!this.currentIdentity) {
-        console.log('🔍 No current identity for delegation chain extraction')
+        // Removed console log
         return null
       }
 
-      console.log('🔍 REAL CERTIFICATE ANALYSIS: Starting delegation chain analysis...')
+      // Removed console log
       
       // Get the delegation chain from the current identity using proper DFINITY methods
       const delegationChain = (this.currentIdentity as any)._delegation || (this.currentIdentity as any).delegation
       
-      console.log('🔍 Raw Delegation Chain Structure:', {
+      // Removed console log
         type: typeof delegationChain,
         isArray: Array.isArray(delegationChain),
         keys: delegationChain && typeof delegationChain === 'object' ? Object.keys(delegationChain) : 'N/A',
@@ -503,7 +503,7 @@ export class InternetIdentityService {
       })
       
       if (!delegationChain) {
-        console.log('📋 No delegation chain available from identity')
+        // Removed console log
         return null
       }
 
@@ -512,19 +512,19 @@ export class InternetIdentityService {
       
       if (delegationChain.delegations && Array.isArray(delegationChain.delegations)) {
         delegationsArray = delegationChain.delegations
-        console.log('🔍 Found delegation chain with', delegationsArray.length, 'delegations')
+        // Removed console log
       } else if (Array.isArray(delegationChain)) {
         delegationsArray = delegationChain
-        console.log('🔍 Delegation chain is array with', delegationsArray.length, 'items')
+        // Removed console log
       } else {
-        console.log('🔍 Single delegation object detected')
+        // Removed console log
         delegationsArray = [delegationChain]
       }
 
       // Process each delegation in the chain
       for (let i = 0; i < delegationsArray.length; i++) {
         const delegationItem = delegationsArray[i]
-        console.log(`🔍 PROCESSING DELEGATION ${i + 1}/${delegationsArray.length}:`, {
+        // Removed console log
           type: typeof delegationItem,
           keys: delegationItem && typeof delegationItem === 'object' ? Object.keys(delegationItem) : 'N/A',
           hasDelgation: 'delegation' in delegationItem,
@@ -537,11 +537,11 @@ export class InternetIdentityService {
           const signature = delegationItem.signature
           
           if (!delegationCert) {
-            console.log(`🔍 No delegation certificate in item ${i + 1}`)
+            // Removed console log
             continue
           }
           
-          console.log(`🔍 CERTIFICATE ANALYSIS ${i + 1}:`, {
+          // Removed console log
             delegationType: typeof delegationCert,
             delegationKeys: delegationCert && typeof delegationCert === 'object' ? Object.keys(delegationCert) : 'N/A',
             signatureType: typeof signature,
@@ -551,20 +551,20 @@ export class InternetIdentityService {
           // Try to decode the delegation certificate using DFINITY Certificate class
           const googleProfile = await this.decodeDelegationCertificate(delegationCert, signature)
           if (googleProfile) {
-            console.log('✅ REAL GOOGLE PROFILE EXTRACTED from delegation certificate!')
+            // Removed console log
             return { googleProfile }
           }
           
         } catch (delegationError) {
-          console.warn(`⚠️ Failed to process delegation ${i + 1}:`, delegationError)
+          // Removed console log
           continue
         }
       }
 
-      console.log('🔍 No Google profile data found in any delegation certificates')
+      // Removed console log
       return null
     } catch (error) {
-      console.error('❌ Critical error in delegation chain extraction:', error)
+      // Removed console log
       return null
     }
   }
@@ -576,12 +576,12 @@ export class InternetIdentityService {
   private async callIICanisterForProfile(): Promise<GoogleAccountInfo | null> {
     try {
       if (!this.currentIdentity) {
-        console.log('🔍 No current identity for II canister profile call')
+        // Removed console log
         return null
       }
 
       const principal = await this.currentIdentity.getPrincipal()
-      console.log('🔍 Calling II v2 canister for profile, principal:', principal.toText())
+      // Removed console log
       
       // Create actor to call II v2 canister
       const { Actor, HttpAgent } = await import('@dfinity/agent')
@@ -596,7 +596,7 @@ export class InternetIdentityService {
         await agent.fetchRootKey()
       }
 
-      console.log('🔍 Creating II v2 canister actor with ID:', this.config.canisterId)
+      // Removed console log
 
       // Try multiple possible II v2 canister interfaces and methods
       const possibleMethods = [
@@ -611,7 +611,7 @@ export class InternetIdentityService {
 
       // First, try to discover available methods
       try {
-        console.log('🔍 Attempting to discover II v2 canister methods...')
+        // Removed console log
         
         // Try the standard Internet Identity interface
         const iiActor = Actor.createActor(
@@ -652,18 +652,18 @@ export class InternetIdentityService {
         )
 
         // Try to get basic stats to verify canister connection
-        console.log('🔍 Testing II v2 canister connection with stats call...')
+        // Removed console log
         const stats = await iiActor.stats()
-        console.log('✅ II v2 canister stats:', stats)
+        // Removed console log
         
         // Unfortunately, II v2 doesn't store Google profile data in a queryable way
         // The profile data is typically embedded in the delegation certificates
-        console.log('ℹ️ II v2 canister connected but doesn\'t expose Google profile via query methods')
+        // Removed console log
         
         return null
         
       } catch (canisterError) {
-        console.warn('⚠️ II v2 canister call failed (expected - profile data not stored in canister):', canisterError)
+        // Removed console log
         
         // This is expected - II v2 doesn't store Google profile data in the canister
         // The profile data comes through the delegation chain instead
@@ -671,7 +671,7 @@ export class InternetIdentityService {
       }
       
     } catch (error) {
-      console.warn('⚠️ Failed to call II canister for profile (this is expected):', error)
+      // Removed console log
       return null
     }
   }
@@ -683,15 +683,15 @@ export class InternetIdentityService {
   private async extractFromAuthCertificates(): Promise<GoogleAccountInfo | null> {
     try {
       if (!this.authClient) {
-        console.log('🔍 No auth client for certificate extraction')
+        // Removed console log
         return null
       }
 
-      console.log('🔍 REAL AUTH CERTIFICATE ANALYSIS: Starting comprehensive certificate extraction...')
+      // Removed console log
       
       // Get authentication details from the auth client
       const identity = this.authClient.getIdentity()
-      console.log('🔍 Identity object structure:', {
+      // Removed console log
         type: typeof identity,
         constructor: identity?.constructor?.name,
         keys: identity && typeof identity === 'object' ? Object.keys(identity) : 'N/A'
@@ -726,7 +726,7 @@ export class InternetIdentityService {
         const certificates = certificateSources[sourceIndex]
         if (!certificates) continue
         
-        console.log(`🔍 CERTIFICATE SOURCE ${sourceIndex + 1}:`, {
+        // Removed console log
           type: typeof certificates,
           isArray: Array.isArray(certificates),
           length: Array.isArray(certificates) ? certificates.length : 'N/A',
@@ -736,7 +736,7 @@ export class InternetIdentityService {
         // Strategy 1: Parse as JWT tokens first
         const jwtProfile = await this.parseJWTTokens(certificates)
         if (jwtProfile) {
-          console.log('✅ REAL GOOGLE PROFILE extracted from JWT token!')
+          // Removed console log
           return jwtProfile
         }
         
@@ -745,7 +745,7 @@ export class InternetIdentityService {
         
         for (let i = 0; i < certArray.length; i++) {
           const cert = certArray[i]
-          console.log(`🔍 PROCESSING CERTIFICATE ${i + 1}/${certArray.length}:`, {
+          // Removed console log
             type: typeof cert,
             isUint8Array: cert instanceof Uint8Array,
             isArrayBuffer: cert instanceof ArrayBuffer,
@@ -756,20 +756,20 @@ export class InternetIdentityService {
             // Enhanced certificate decoding with JWT support
             const googleProfile = await this.decodeDelegationCertificate(cert)
             if (googleProfile) {
-              console.log('✅ REAL GOOGLE PROFILE extracted from auth certificate!')
+              // Removed console log
               return googleProfile
             }
           } catch (certError) {
-            console.warn(`⚠️ Failed to decode auth certificate ${i + 1}:`, certError)
+            // Removed console log
             continue
           }
         }
       }
 
-      console.log('🔍 No Google profile data found in any authentication certificates')
+      // Removed console log
       return null
     } catch (error) {
-      console.error('❌ Critical error in auth certificate extraction:', error)
+      // Removed console log
       return null
     }
   }
@@ -780,7 +780,7 @@ export class InternetIdentityService {
    */
   private async parseJWTTokens(data: any): Promise<GoogleAccountInfo | null> {
     try {
-      console.log('🔍 JWT TOKEN ANALYSIS: Parsing potential JWT tokens...')
+      // Removed console log
       
       if (!data) return null
       
@@ -809,7 +809,7 @@ export class InternetIdentityService {
       if (typeof data === 'object' && data !== null && !ArrayBuffer.isView(data)) {
         for (const [key, value] of Object.entries(data)) {
           if (typeof value === 'string' && this.looksLikeJWT(value)) {
-            console.log(`🔍 Found potential JWT in property '${key}'`)
+            // Removed console log
             jwtCandidates.push(value)
           } else if (typeof value === 'object') {
             // Recursively search nested objects
@@ -822,28 +822,28 @@ export class InternetIdentityService {
       // Decode each JWT candidate
       for (let i = 0; i < jwtCandidates.length; i++) {
         const jwt = jwtCandidates[i]
-        console.log(`🔍 DECODING JWT ${i + 1}/${jwtCandidates.length}: ${jwt.substring(0, 50)}...`)
+        // Removed console log
         
         try {
           const decoded = this.decodeJWT(jwt)
           if (decoded) {
-            console.log('🔍 JWT decoded successfully:', decoded)
+            // Removed console log
             
             const googleProfile = this.extractGoogleClaimsFromDecodedCert(decoded)
             if (googleProfile) {
-              console.log('✅ REAL GOOGLE PROFILE extracted from JWT!')
+              // Removed console log
               return googleProfile
             }
           }
         } catch (jwtError) {
-          console.log(`⚠️ Failed to decode JWT ${i + 1}:`, jwtError)
+          // Removed console log
           continue
         }
       }
       
       return null
     } catch (error) {
-      console.log('⚠️ Error in JWT token parsing:', error)
+      // Removed console log
       return null
     }
   }
@@ -868,7 +868,7 @@ export class InternetIdentityService {
    */
   private decodeJWT(jwt: string): any {
     try {
-      console.log('🔍 Decoding JWT token...')
+      // Removed console log
       
       const parts = jwt.split('.')
       if (parts.length !== 3) {
@@ -879,17 +879,17 @@ export class InternetIdentityService {
       
       // Decode header
       const decodedHeader = this.base64URLDecode(header)
-      console.log('🔍 JWT Header:', decodedHeader)
+      // Removed console log
       
       // Decode payload (contains the claims)
       const decodedPayload = this.base64URLDecode(payload)
-      console.log('🔍 JWT Payload:', decodedPayload)
+      // Removed console log
       
       // Return the payload as it contains the user claims
       return decodedPayload
       
     } catch (error) {
-      console.log('⚠️ JWT decoding failed:', error)
+      // Removed console log
       return null
     }
   }
@@ -911,7 +911,7 @@ export class InternetIdentityService {
       // Parse as JSON
       return JSON.parse(decoded)
     } catch (error) {
-      console.log('⚠️ Base64 URL decode failed:', error)
+      // Removed console log
       return null
     }
   }
@@ -922,8 +922,8 @@ export class InternetIdentityService {
    */
   private async decodeDelegationCertificate(delegationCert: any, _signature?: any): Promise<GoogleAccountInfo | null> {
     try {
-      console.log('🔍 REAL CERTIFICATE DECODING: Analyzing delegation certificate structure...')
-      console.log('🔍 Certificate object:', {
+      // Removed console log
+      // Removed console log
         type: typeof delegationCert,
         keys: delegationCert && typeof delegationCert === 'object' ? Object.keys(delegationCert) : 'N/A',
         constructor: delegationCert?.constructor?.name,
@@ -932,7 +932,7 @@ export class InternetIdentityService {
       })
       
       if (!delegationCert) {
-        console.log('🔍 No delegation certificate provided')
+        // Removed console log
         return null
       }
       
@@ -941,7 +941,7 @@ export class InternetIdentityService {
       
       // Strategy 1: Try to decode using DFINITY Certificate class
       try {
-        console.log('🔍 STRATEGY 1: Attempting DFINITY Certificate.create()...')
+        // Removed console log
         
         let certData: ArrayBuffer
         
@@ -963,22 +963,22 @@ export class InternetIdentityService {
             }
             certData = bytes.buffer
           } catch {
-            console.log('🔍 Failed to decode certificate as base64 string')
+            // Removed console log
             return null
           }
         } else {
-          console.log('🔍 Cannot convert certificate to ArrayBuffer, type:', typeof delegationCert)
+          // Removed console log
           return null
         }
         
-        console.log('🔍 Creating DFINITY Certificate with data length:', certData.byteLength)
+        // Removed console log
         
         // Note: Certificate.create requires rootKey and canisterId for verification
         // For delegation certificates, we'll try a different approach
         try {
           // Try to create certificate without verification (for delegation analysis)
           const cert = new Uint8Array(certData)
-          console.log('✅ Certificate data prepared for analysis')
+          // Removed console log
           
           // Try to decode as CBOR (IC certificates are typically CBOR-encoded)
           const decoded = await this.decodeCBORCertificate(cert)
@@ -990,21 +990,21 @@ export class InternetIdentityService {
           }
           
         } catch (certError) {
-          console.log('🔍 Certificate creation approach failed:', certError)
+          // Removed console log
         }
         
       } catch (certificateError) {
-        console.log('🔍 DFINITY Certificate.create() failed:', certificateError)
+        // Removed console log
       }
       
       // Strategy 2: Try to decode as CBOR (Common format for IC certificates)
       try {
-        console.log('🔍 STRATEGY 2: Attempting CBOR decoding...')
+        // Removed console log
         
         if (delegationCert instanceof Uint8Array) {
           const decoded = await this.decodeCBORCertificate(delegationCert)
           if (decoded) {
-            console.log('🔍 CBOR decoded certificate:', decoded)
+            // Removed console log
             
             const googleProfile = this.extractGoogleClaimsFromDecodedCert(decoded)
             if (googleProfile) {
@@ -1013,12 +1013,12 @@ export class InternetIdentityService {
           }
         }
       } catch (cborError) {
-        console.log('🔍 CBOR decoding failed:', cborError)
+        // Removed console log
       }
       
       // Strategy 3: Direct object analysis for already decoded certificates
       try {
-        console.log('🔍 STRATEGY 3: Direct object analysis...')
+        // Removed console log
         
         if (typeof delegationCert === 'object' && delegationCert !== null) {
           const googleProfile = this.extractGoogleClaimsFromDecodedCert(delegationCert)
@@ -1027,12 +1027,12 @@ export class InternetIdentityService {
           }
         }
       } catch (objectError) {
-        console.log('🔍 Direct object analysis failed:', objectError)
+        // Removed console log
       }
       
       // Strategy 4: Try JSON decoding for string certificates
       try {
-        console.log('🔍 STRATEGY 4: JSON string decoding...')
+        // Removed console log
         
         if (typeof delegationCert === 'string') {
           const parsed = JSON.parse(delegationCert)
@@ -1042,14 +1042,14 @@ export class InternetIdentityService {
           }
         }
       } catch (jsonError) {
-        console.log('🔍 JSON decoding failed:', jsonError)
+        // Removed console log
       }
       
-      console.log('🔍 All certificate decoding strategies failed - no Google OAuth claims found')
+      // Removed console log
       return null
       
     } catch (error) {
-      console.error('❌ Critical error in delegation certificate decoding:', error)
+      // Removed console log
       return null
     }
   }
@@ -1059,7 +1059,7 @@ export class InternetIdentityService {
    */
   private async decodeCBORCertificate(certData: Uint8Array): Promise<any> {
     try {
-      console.log('🔍 Attempting CBOR decoding of certificate...')
+      // Removed console log
       
       // Try different CBOR decoding approaches
       
@@ -1068,25 +1068,25 @@ export class InternetIdentityService {
         const decoder = new TextDecoder('utf-8')
         const text = decoder.decode(certData)
         
-        console.log('🔍 Decoded certificate text (first 200 chars):', text.substring(0, 200))
+        // Removed console log
         
         if (text.includes('{') && text.includes('}')) {
-          console.log('🔍 Certificate appears to contain JSON data')
+          // Removed console log
           try {
             // Try parsing the entire text as JSON
             const parsed = JSON.parse(text)
-            console.log('✅ Successfully parsed certificate as JSON:', parsed)
+            // Removed console log
             return parsed
           } catch (parseError) {
-            console.log('🔍 Full JSON parse failed, trying to extract JSON parts...')
+            // Removed console log
             // Extract all JSON-like parts with improved regex
             const jsonMatches = text.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g)
             if (jsonMatches && jsonMatches.length > 0) {
-              console.log('🔍 Found JSON matches:', jsonMatches)
+              // Removed console log
               for (const match of jsonMatches) {
                 try {
                   const parsed = JSON.parse(match)
-                  console.log('✅ Successfully parsed JSON match:', parsed)
+                  // Removed console log
                   return parsed
                 } catch {
                   continue
@@ -1096,27 +1096,27 @@ export class InternetIdentityService {
           }
         }
       } catch (textError) {
-        console.log('🔍 Text decoding failed:', textError)
+        // Removed console log
       }
       
       // Approach 2: Try to interpret as raw certificate structure
       try {
         // Look for patterns that might indicate certificate fields
         const hex = Array.from(certData).map(b => b.toString(16).padStart(2, '0')).join('')
-        console.log('🔍 Certificate hex (first 200 chars):', hex.substring(0, 200))
+        // Removed console log
         
         // Look for common certificate markers
         if (hex.includes('676f6f676c65')) { // 'google' in hex
-          console.log('✨ Found "google" string in certificate hex!')
+          // Removed console log
         }
         
         if (hex.includes('656d61696c')) { // 'email' in hex
-          console.log('✨ Found "email" string in certificate hex!')
+          // Removed console log
         }
         
         // Try to extract text strings from the binary data
         const strings = this.extractStringsFromBinary(certData)
-        console.log('🔍 Extracted strings from certificate:', strings)
+        // Removed console log
         
         // Look for Google-related strings with case-insensitive matching
         const googleStrings = strings.filter(s => 
@@ -1128,17 +1128,17 @@ export class InternetIdentityService {
         )
         
         if (googleStrings.length > 0) {
-          console.log('✨ Found Google-related strings:', googleStrings)
+          // Removed console log
           return { extractedStrings: googleStrings }
         }
         
       } catch (analysisError) {
-        console.log('🔍 Raw certificate analysis failed:', analysisError)
+        // Removed console log
       }
       
       return null
     } catch (error) {
-      console.log('🔍 CBOR decoding failed:', error)
+      // Removed console log
       return null
     }
   }
@@ -1189,7 +1189,7 @@ export class InternetIdentityService {
       // Remove duplicates and empty strings
       return [...new Set(strings.filter(s => s.length > 0))]
     } catch (error) {
-      console.log('🔍 String extraction failed:', error)
+      // Removed console log
       return []
     }
   }
@@ -1199,20 +1199,20 @@ export class InternetIdentityService {
    */
   private parseGoogleClaimsFromCertificateData(data: ArrayBuffer | Uint8Array | any): GoogleAccountInfo | null {
     try {
-      console.log('🔍 Parsing Google claims from certificate data:', data)
+      // Removed console log
       
       // Try to decode as text first
       if (data instanceof ArrayBuffer || data instanceof Uint8Array) {
         const decoder = new TextDecoder('utf-8')
         const text = decoder.decode(data)
-        console.log('🔍 Decoded certificate text:', text)
+        // Removed console log
         
         try {
           const parsed = JSON.parse(text)
           return this.extractGoogleClaimsFromDecodedCert(parsed)
         } catch {
           // Not JSON, maybe it's a different format
-          console.log('🔍 Certificate data is not JSON')
+          // Removed console log
         }
       }
       
@@ -1220,7 +1220,7 @@ export class InternetIdentityService {
       return this.extractGoogleClaimsFromDecodedCert(data)
       
     } catch (error) {
-      console.log('🔍 Failed to parse Google claims from certificate data:', error)
+      // Removed console log
       return null
     }
   }
@@ -1232,7 +1232,7 @@ export class InternetIdentityService {
     try {
       if (depth > 5) return null // Prevent infinite recursion
       
-      console.log(`🔍 Searching certificate tree at depth ${depth}:`, tree)
+      // Removed console log
       
       // Direct check for Google claims
       const googleProfile = this.extractGoogleClaimsFromDecodedCert(tree)
@@ -1244,7 +1244,7 @@ export class InternetIdentityService {
       if (typeof tree === 'object' && tree !== null) {
         for (const [key, value] of Object.entries(tree)) {
           if (key.toLowerCase().includes('google') || key.toLowerCase().includes('oauth')) {
-            console.log(`🔍 Found potential Google key: ${key}`, value)
+            // Removed console log
             const result = this.extractGoogleClaimsFromDecodedCert(value)
             if (result) return result
           }
@@ -1259,7 +1259,7 @@ export class InternetIdentityService {
       
       return null
     } catch (error) {
-      console.log('🔍 Error searching certificate tree:', error)
+      // Removed console log
       return null
     }
   }
@@ -1273,7 +1273,7 @@ export class InternetIdentityService {
         return null
       }
       
-      console.log('🔍 Extracting Google claims from decoded cert:', cert)
+      // Removed console log
       
       // Check various possible claim structures
       const possibleClaimLocations = [
@@ -1294,11 +1294,11 @@ export class InternetIdentityService {
       for (const claims of possibleClaimLocations) {
         if (!claims) continue
         
-        console.log('🔍 Checking potential Google claims:', claims)
+        // Removed console log
         
         // Handle array of extracted strings
         if (Array.isArray(claims)) {
-          console.log('🔍 Processing extracted strings for Google claims...')
+          // Removed console log
           
           // Look for email patterns
           const emailString = claims.find(s => 
@@ -1310,7 +1310,7 @@ export class InternetIdentityService {
           )
           
           if (emailString) {
-            console.log('✅ Found email in extracted strings:', emailString)
+            // Removed console log
             
             // Try to extract name from nearby strings
             let nameString = emailString.split('@')[0]
@@ -1343,7 +1343,7 @@ export class InternetIdentityService {
                 const parsed = JSON.parse(str)
                 const result = this.extractGoogleClaimsFromDecodedCert(parsed)
                 if (result) {
-                  console.log('✅ Found Google claims in JSON string:', result)
+                  // Removed console log
                   return result
                 }
               } catch {
@@ -1355,7 +1355,7 @@ export class InternetIdentityService {
         
         // Standard Google OAuth fields
         if (claims.email && typeof claims.email === 'string') {
-          console.log('✅ Found Google OAuth claims with email!')
+          // Removed console log
           
           return {
             email: claims.email,
@@ -1371,11 +1371,11 @@ export class InternetIdentityService {
         }
       }
       
-      console.log('🔍 No valid Google claims found in decoded certificate')
+      // Removed console log
       return null
       
     } catch (error) {
-      console.log('🔍 Error extracting Google claims:', error)
+      // Removed console log
       return null
     }
   }
@@ -1389,7 +1389,7 @@ export class InternetIdentityService {
       if (depth > maxDepth) return
       
       const indent = '  '.repeat(depth)
-      console.log(`${indent}🔍 CERT DEBUG [depth ${depth}]:`, {
+      // Removed console log
         type: typeof cert,
         constructor: cert?.constructor?.name,
         isArray: Array.isArray(cert),
@@ -1400,35 +1400,35 @@ export class InternetIdentityService {
       
       if (cert instanceof Uint8Array || cert instanceof ArrayBuffer) {
         const length = cert instanceof ArrayBuffer ? cert.byteLength : (cert as Uint8Array).length
-        console.log(`${indent}  📆 Binary data length:`, length)
+        // Removed console log
         
         // Try to decode as text
         try {
           const decoder = new TextDecoder('utf-8')
           const text = decoder.decode(cert)
-          console.log(`${indent}  📝 Text preview:`, text.substring(0, 100))
+          // Removed console log
           
           if (this.looksLikeJWT(text)) {
-            console.log(`${indent}  🏧 Detected JWT token!`)
+            // Removed console log
           }
         } catch {
-          console.log(`${indent}  ⚠️ Cannot decode as UTF-8 text`)
+          // Removed console log
         }
       } else if (typeof cert === 'string') {
-        console.log(`${indent}  📝 String content:`, cert.substring(0, 100) + (cert.length > 100 ? '...' : ''))
+        // Removed console log
         
         if (this.looksLikeJWT(cert)) {
-          console.log(`${indent}  🏧 Detected JWT token!`)
+          // Removed console log
           try {
             const decoded = this.decodeJWT(cert)
-            console.log(`${indent}  🔓 JWT decoded:`, decoded)
+            // Removed console log
           } catch {
-            console.log(`${indent}  ⚠️ Failed to decode JWT`)
+            // Removed console log
           }
         }
       } else if (typeof cert === 'object' && cert !== null) {
         const keys = Object.keys(cert)
-        console.log(`${indent}  🔑 Object keys:`, keys)
+        // Removed console log
         
         // Look for interesting keys
         const interestingKeys = keys.filter(key => 
@@ -1442,23 +1442,23 @@ export class InternetIdentityService {
         )
         
         if (interestingKeys.length > 0) {
-          console.log(`${indent}  ✨ Interesting keys found:`, interestingKeys)
+          // Removed console log
           
           for (const key of interestingKeys) {
-            console.log(`${indent}  🔍 Key '${key}':`, cert[key])
+            // Removed console log
             this.debugCertificateStructure(cert[key], depth + 1, maxDepth)
           }
         } else if (depth < maxDepth) {
           // Recurse into first few properties
           for (const [key, value] of Object.entries(cert).slice(0, 3)) {
-            console.log(`${indent}  🔍 Property '${key}':`, value)
+            // Removed console log
             this.debugCertificateStructure(value, depth + 1, maxDepth)
           }
         }
       }
     } catch (error) {
       const indentStr = '  '.repeat(depth)
-      console.log(`${indentStr}⚠️ Error in certificate debugging:`, error)
+      // Removed console log
     }
   }
 
@@ -1474,7 +1474,7 @@ export class InternetIdentityService {
       const isAuthenticated = await this.authClient.isAuthenticated()
       return isAuthenticated
     } catch (error) {
-      console.warn('⚠️ Failed to check authentication status:', error)
+      // Removed console log
       return false
     }
   }
@@ -1519,9 +1519,9 @@ export class InternetIdentityService {
       }
       this.currentIdentity = null
       this.currentUser = null
-      console.log('👋 User signed out from II v2')
+      // Removed console log
     } catch (error) {
-      console.error('❌ Failed to sign out:', error)
+      // Removed console log
     }
   }
 
@@ -1558,7 +1558,7 @@ export class InternetIdentityService {
         hasGoogleAccount: !!user.googleAccount
       }
     } catch (error) {
-      console.error('❌ Failed to get auth status:', error)
+      // Removed console log
       return { isAuthenticated: false }
     }
   }
@@ -1633,10 +1633,10 @@ export class InternetIdentityService {
       // Refresh user profile
       this.currentUser = await this.getUserProfile(principalString)
       
-      console.log('🔄 Session refreshed for user:', principalString)
+      // Removed console log
       return true
     } catch (error) {
-      console.error('❌ Failed to refresh session:', error)
+      // Removed console log
       return false
     }
   }
@@ -1672,46 +1672,46 @@ export class IIv2CertificateDebugger {
    */
   static async analyzeDelegationChain(identity: Identity): Promise<void> {
     try {
-      console.log('🔬 COMPREHENSIVE DELEGATION CHAIN ANALYSIS')
-      console.log('==========================================')
+      // Removed console log
+      // Removed console log
       
       // Get principal info
       const principal = await identity.getPrincipal()
-      console.log('👤 Principal:', principal.toText())
-      console.log('🔄 Is Anonymous:', principal.isAnonymous())
+      // Removed console log
+      // Removed console log
       
       // Analyze identity structure
-      console.log('\n🏗️ IDENTITY STRUCTURE ANALYSIS:')
-      console.log('Identity type:', typeof identity)
-      console.log('Identity constructor:', identity.constructor.name)
-      console.log('Identity keys:', Object.keys(identity))
+      // Removed console log
+      // Removed console log
+      // Removed console log
+      // Removed console log
       
       // Get delegation information
       const delegation = (identity as any)._delegation || (identity as any).delegation
       if (delegation) {
-        console.log('\n📜 DELEGATION CHAIN FOUND:')
-        console.log('Delegation type:', typeof delegation)
-        console.log('Delegation keys:', Object.keys(delegation))
+        // Removed console log
+        // Removed console log
+        // Removed console log
         
         if (delegation.delegations && Array.isArray(delegation.delegations)) {
-          console.log('📋 Delegations array length:', delegation.delegations.length)
+          // Removed console log
           
           for (let i = 0; i < delegation.delegations.length; i++) {
             const del = delegation.delegations[i]
-            console.log(`\n🔍 DELEGATION ${i + 1}:`)
-            console.log('  Type:', typeof del)
-            console.log('  Keys:', Object.keys(del))
+            // Removed console log
+            // Removed console log
+            // Removed console log
             
             if (del.delegation) {
-              console.log('  Certificate type:', typeof del.delegation)
-              console.log('  Certificate constructor:', del.delegation?.constructor?.name)
+              // Removed console log
+              // Removed console log
               
               if (del.delegation instanceof Uint8Array) {
-                console.log('  Certificate length:', del.delegation.length)
+                // Removed console log
                 
                 // Extract and analyze strings
                 const strings = IIv2CertificateDebugger.extractStringsFromBinary(del.delegation)
-                console.log('  Extracted strings:', strings)
+                // Removed console log
                 
                 // Look for Google-related data
                 const googleStrings = strings.filter(s => 
@@ -1722,26 +1722,26 @@ export class IIv2CertificateDebugger {
                 )
                 
                 if (googleStrings.length > 0) {
-                  console.log('  🎯 GOOGLE-RELATED STRINGS FOUND:', googleStrings)
+                  // Removed console log
                 }
               }
             }
             
             if (del.signature) {
-              console.log('  Signature type:', typeof del.signature)
-              console.log('  Signature length:', del.signature.length)
+              // Removed console log
+              // Removed console log
             }
           }
         }
       } else {
-        console.log('\n❌ NO DELEGATION CHAIN FOUND')
+        // Removed console log
       }
       
-      console.log('\n✅ DELEGATION CHAIN ANALYSIS COMPLETE')
-      console.log('==========================================')
+      // Removed console log
+      // Removed console log
       
     } catch (error) {
-      console.error('❌ Error in delegation chain analysis:', error)
+      // Removed console log
     }
   }
   
@@ -1780,18 +1780,18 @@ export class IIv2CertificateDebugger {
    */
   static async testGoogleProfileExtraction(service: InternetIdentityService): Promise<void> {
     try {
-      console.log('🧪 TESTING GOOGLE PROFILE EXTRACTION')
-      console.log('=====================================')
+      // Removed console log
+      // Removed console log
       
       const user = service.getCurrentUser()
       const identity = service.getCurrentIdentity()
       
       if (!user || !identity) {
-        console.log('❌ No authenticated user found')
+        // Removed console log
         return
       }
       
-      console.log('👤 Current user:', {
+      // Removed console log
         principal: user.principal,
         hasGoogleAccount: !!user.googleAccount,
         googleEmail: user.googleAccount?.email,
@@ -1802,16 +1802,16 @@ export class IIv2CertificateDebugger {
       await IIv2CertificateDebugger.analyzeDelegationChain(identity)
       
       // Test manual extraction
-      console.log('\n🔧 TESTING MANUAL EXTRACTION METHODS:')
+      // Removed console log
       
       const manualExtraction = await (service as any).extractGoogleAccountInfo()
-      console.log('Manual extraction result:', manualExtraction)
+      // Removed console log
       
-      console.log('\n✅ GOOGLE PROFILE EXTRACTION TEST COMPLETE')
-      console.log('=============================================')
+      // Removed console log
+      // Removed console log
       
     } catch (error) {
-      console.error('❌ Error in Google profile extraction test:', error)
+      // Removed console log
     }
   }
 }
@@ -1825,7 +1825,7 @@ export const internetIdentityService = new InternetIdentityService(getIIConfig()
  * Initialize the service when module loads
  */
 internetIdentityService.initialize().catch(error => {
-  console.error('Failed to initialize II v2 service:', error)
+  // Removed console log
 })
 
 // Export debugging utilities for development
@@ -1838,7 +1838,7 @@ if (import.meta.env.DEV) {
       if (identity) {
         return IIv2CertificateDebugger.analyzeDelegationChain(identity)
       } else {
-        console.log('❌ No authenticated identity found')
+        // Removed console log
       }
     },
     testExtraction: () => {
@@ -1846,9 +1846,9 @@ if (import.meta.env.DEV) {
     }
   }
   
-  console.log('🔧 II v2 Debug tools available at window.IIv2Debug')
-  console.log('   - IIv2Debug.analyzeDelegationChain() - Analyze current delegation')
-  console.log('   - IIv2Debug.testExtraction() - Test Google profile extraction')
+  // Removed console log
+  // Removed console log
+  // Removed console log
 }
 
 export default internetIdentityService

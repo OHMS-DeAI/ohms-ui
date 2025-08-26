@@ -60,7 +60,7 @@ export const NOVAQDashboard: React.FC = () => {
           setValidationReports(validationData)
         }
       } catch (error) {
-        console.error('Failed to fetch NOVAQ data:', error)
+        // Removed console log
         // Initialize with empty arrays instead of mock data
         setBenchmarkConfigs([])
         setValidationReports([])
@@ -81,14 +81,14 @@ export const NOVAQDashboard: React.FC = () => {
       })
       
       if (response.ok) {
-        console.log(`Started benchmark for ${modelName}`)
+        // Removed console log
         // Refresh the benchmark list
         window.location.reload()
       } else {
-        console.error(`Failed to start benchmark for ${modelName}`)
+        // Removed console log
       }
     } catch (error) {
-      console.error(`Error starting benchmark for ${modelName}:`, error)
+      // Removed console log
     }
   }
 
@@ -103,14 +103,14 @@ export const NOVAQDashboard: React.FC = () => {
       })
       
       if (response.ok) {
-        console.log(`Validated model ${modelId}`)
+        // Removed console log
         // Refresh the validation reports
         window.location.reload()
       } else {
-        console.error(`Failed to validate model ${modelId}`)
+        // Removed console log
       }
     } catch (error) {
-      console.error(`Error validating model ${modelId}:`, error)
+      // Removed console log
     }
   }
 

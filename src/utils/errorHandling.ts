@@ -383,16 +383,16 @@ class ErrorHandler {
 
     switch (error.severity) {
       case ErrorSeverity.CRITICAL:
-        console.error('🚨 CRITICAL ERROR:', logData)
+        // Removed console log
         break
       case ErrorSeverity.HIGH:
-        console.error('❌ HIGH SEVERITY ERROR:', logData)
+        // Removed console log
         break
       case ErrorSeverity.MEDIUM:
-        console.warn('⚠️ MEDIUM SEVERITY ERROR:', logData)
+        // Removed console log
         break
       case ErrorSeverity.LOW:
-        console.info('ℹ️ LOW SEVERITY ERROR:', logData)
+        // Removed console log
         break
     }
   }
@@ -420,7 +420,7 @@ class ErrorHandler {
       
       localStorage.setItem('ohms_error_history', JSON.stringify(sanitizedHistory.slice(0, 10)))
     } catch (storageError) {
-      console.warn('Could not store error history:', storageError)
+      // Removed console log
     }
   }
 
@@ -443,10 +443,10 @@ class ErrorHandler {
           buildVersion: import.meta.env.VITE_APP_VERSION || 'unknown'
         }
 
-        console.log('Critical error report prepared:', report)
+        // Removed console log
         // TODO: Implement actual reporting to monitoring service
       } catch (reportingError) {
-        console.error('Failed to report critical error:', reportingError)
+        // Removed console log
       }
     }
   }
@@ -512,7 +512,7 @@ class ErrorHandler {
     try {
       localStorage.removeItem('ohms_error_history')
     } catch (storageError) {
-      console.warn('Could not clear error history from storage:', storageError)
+      // Removed console log
     }
   }
 }

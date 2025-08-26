@@ -25,7 +25,7 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
         const admin = await checkAdminStatus()
         setIsAdmin(admin || hasAdminRole)
       } catch (error) {
-        console.error('Failed to check admin status:', error)
+        // Removed console log
         setIsAdmin(false)
       } finally {
         setLoading(false)

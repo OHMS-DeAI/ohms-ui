@@ -168,7 +168,7 @@ class DemoSubscriptionService {
       this.adminCycles.lastUpdated = new Date()
       this.saveAdminCyclesToStorage()
       
-      console.log(`✅ Created ${plan} subscription for user ${userId}`)
+      // Removed console log
     }
     
     return subscription
@@ -201,7 +201,7 @@ class DemoSubscriptionService {
     this.subscriptions.set(userId, subscription)
     this.saveToStorage()
     
-    console.log(`✅ Upgraded user ${userId} to Basic Plan with 1-month free offer`)
+    // Removed console log
     
     return subscription
   }
@@ -359,8 +359,8 @@ class DemoSubscriptionService {
     this.adminCycles.totalCyclesAllocated += additionalCycles
     this.adminCycles.lastUpdated = new Date()
     
-    console.log(`✅ Admin allocated ${additionalCycles} additional cycles. Total: ${this.adminCycles.totalCyclesAllocated}`)
-    console.log(`📝 Note: ${adminNote}`)
+    // Removed console log
+    // Removed console log
     
     this.saveAdminCyclesToStorage()
   }
@@ -386,7 +386,7 @@ class DemoSubscriptionService {
     this.subscriptions.set(userId, subscription)
     this.saveToStorage()
     
-    console.log(`✅ Admin changed user ${userId} plan to ${newPlan}`)
+    // Removed console log
     
     return subscription
   }
@@ -403,7 +403,7 @@ class DemoSubscriptionService {
     this.subscriptions.set(userId, subscription)
     this.saveToStorage()
     
-    console.log(`⬇️ Auto-downgraded user ${userId} to Free Plan after Basic Plan expiry`)
+    // Removed console log
   }
 
   private getApiCallsUsedToday(userId: string): number {
@@ -481,7 +481,7 @@ class DemoSubscriptionService {
       }
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data))
     } catch (error) {
-      console.warn('Failed to save subscriptions to storage:', error)
+      // Removed console log
     }
   }
 
@@ -505,7 +505,7 @@ class DemoSubscriptionService {
         }))
       }
     } catch (error) {
-      console.warn('Failed to load subscriptions from storage:', error)
+      // Removed console log
     }
   }
 
@@ -513,7 +513,7 @@ class DemoSubscriptionService {
     try {
       localStorage.setItem(this.ADMIN_CYCLES_KEY, JSON.stringify(this.adminCycles))
     } catch (error) {
-      console.warn('Failed to save admin cycles to storage:', error)
+      // Removed console log
     }
   }
 
@@ -526,7 +526,7 @@ class DemoSubscriptionService {
         this.adminCycles = data
       }
     } catch (error) {
-      console.warn('Failed to load admin cycles from storage:', error)
+      // Removed console log
     }
   }
 

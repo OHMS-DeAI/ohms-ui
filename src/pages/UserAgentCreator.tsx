@@ -96,12 +96,12 @@ const UserAgentCreator = () => {
           setAvailableModels(['llama-3.1-8b']) // Fallback to real model
         }
       } catch (error) {
-        console.warn('Failed to load models, using default:', error)
+        // Removed console log
         setAvailableModels(['llama-3.1-8b']) // Fallback to real model
       }
 
     } catch (e: any) {
-      console.error(e)
+      // Removed console log
       setError(e?.message || 'Failed to load user data')
     } finally {
       setLoading(false)

@@ -129,7 +129,7 @@ export class ApiClient {
       try {
         await agent.fetchRootKey()
       } catch (error) {
-        console.warn('Failed to fetch root key:', error)
+        // Removed console log
       }
     }
   }
@@ -156,7 +156,7 @@ export class ApiClient {
       // In production, this would read from the actual canister_ids.json files
       return defaultIds
     } catch (error) {
-      console.warn('Failed to load canister IDs from files, using defaults:', error)
+      // Removed console log
       return defaultIds
     }
   }
@@ -245,7 +245,7 @@ export class ApiClient {
       return processedResponse
 
     } catch (error) {
-      console.error(`API Request failed [${requestId}]:`, error)
+      // Removed console log
       return this.handleRequestError(error, requestId, startTime, 1)
     }
   }
@@ -482,7 +482,7 @@ export class ApiClient {
 
       // Wait before retrying
       const waitTime = result.error.retryAfter || this.calculateRetryDelay(attempt)
-      console.log(`Retrying request in ${waitTime}ms (attempt ${attempt + 1}/${this.config.retries})`)
+      // Removed console log
 
       await new Promise(resolve => setTimeout(resolve, waitTime))
     }
@@ -704,7 +704,7 @@ export class RealTimeManager {
       const ws = new WebSocket(wsUrl)
 
       ws.onopen = () => {
-        console.log(`WebSocket connected for ${endpoint}`)
+        // Removed console log
       }
 
       ws.onmessage = (event) => {
@@ -712,13 +712,13 @@ export class RealTimeManager {
           const data = JSON.parse(event.data)
           this.handleDataUpdate(endpoint, data)
         } catch (error) {
-          console.error('Failed to parse WebSocket message:', error)
+          // Removed console log
           options.onError?.(error)
         }
       }
 
       ws.onerror = (error) => {
-        console.error(`WebSocket error for ${endpoint}:`, error)
+        // Removed console log
         options.onError?.(error)
 
         // Fallback to polling if WebSocket fails
@@ -728,7 +728,7 @@ export class RealTimeManager {
       }
 
       ws.onclose = () => {
-        console.log(`WebSocket closed for ${endpoint}`)
+        // Removed console log
 
         // Retry connection after delay
         if (options.retryOnError !== false) {
@@ -740,7 +740,7 @@ export class RealTimeManager {
 
       this.wsConnections.set(endpoint, ws)
     } catch (error) {
-      console.error('Failed to create WebSocket connection:', error)
+      // Removed console log
       // Fallback to polling immediately
       this.startPolling(endpoint, options)
     }
@@ -759,7 +759,7 @@ export class RealTimeManager {
           this.handleDataUpdate(endpoint, data)
         }
       } catch (error) {
-        console.error(`Polling error for ${endpoint}:`, error)
+        // Removed console log
         options.onError?.(error)
       }
     }, interval)
@@ -869,12 +869,12 @@ export class EnhancedApiClient extends ApiClient {
   private subscribeToHealthUpdates(): void {
     this.subscribeToData('health', {
       onUpdate: (healthData) => {
-        console.log('Real-time health update:', healthData)
+        // Removed console log
         // Emit health update event
         this.emitHealthUpdate(healthData)
       },
       onError: (error) => {
-        console.error('Health monitoring error:', error)
+        // Removed console log
       },
       pollingInterval: 30000, // 30 second polling fallback
       retryOnError: true
@@ -899,7 +899,7 @@ export class EnhancedApiClient extends ApiClient {
       try {
         callback(data)
       } catch (error) {
-        console.error('Error in health update listener:', error)
+        // Removed console log
       }
     })
   }
@@ -959,7 +959,7 @@ export const createAuthInterceptor = (getIdentity: () => Identity | null): Reque
     const identity = getIdentity()
     if (identity) {
       // Add authentication headers or modify config as needed
-      console.log('Adding authentication to request:', config.endpoint)
+      // Removed console log
     }
     return config
   }
@@ -968,7 +968,7 @@ export const createAuthInterceptor = (getIdentity: () => Identity | null): Reque
 export const createLoggingInterceptor = (): ResponseInterceptor => {
   return (response) => {
     if (response.metadata) {
-      console.log(`API Request [${response.metadata.requestId}]:`, {
+      // Removed console log
         success: response.success,
         duration: response.metadata.duration,
         error: response.error?.code
@@ -985,7 +985,7 @@ export const createRetryInterceptor = (maxRetries: number = 3): ResponseIntercep
 
       // Retry logic for specific error types
       if (['NETWORK_ERROR', 'REQUEST_TIMEOUT'].includes(error.code || '') && maxRetries > 0) {
-        console.log(`Retrying request due to ${error.code}, attempts remaining: ${maxRetries}`)
+        // Removed console log
 
         // Wait before retry
         await new Promise(resolve => setTimeout(resolve, 1000))

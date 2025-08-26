@@ -25,6 +25,13 @@ export default defineConfig({
     // Ensure compatibility with ICP
     target: 'es2020',
     sourcemap: false,
+    // Remove console logs in production builds
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
   },
   server: {
     port: 3000,

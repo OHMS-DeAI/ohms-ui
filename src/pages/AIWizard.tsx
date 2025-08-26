@@ -97,7 +97,7 @@ const AIWizard = () => {
         actual_cost: taskRequest.budget * 0.85
       })
     } catch (error) {
-      console.error('Task processing failed:', error)
+      // Removed console log
     } finally {
       setIsProcessing(false)
     }

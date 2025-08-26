@@ -97,12 +97,9 @@ const Economics = () => {
         const tiers = await econCanister.get_subscription_tiers()
         setAvailableTiers(tiers)
 
-        console.log('✅ Real subscription tiers loaded:', {
-          tierCount: tiers.length,
-          tiers: tiers.map(([name, _]) => name)
-        })
+        // Real subscription tiers loaded successfully - logging removed for security
       } catch (error) {
-        console.error('❌ Failed to initialize real subscription data:', error)
+        // Removed console log
         setError('Failed to load subscription tiers')
       } finally {
         setLoading(false)
@@ -144,24 +141,17 @@ const Economics = () => {
             }
           }
 
-          console.log('✅ User subscription loaded:', {
-            tier: subscription.tier.name,
-            principal: principal,
-            status: Object.keys(subscription.payment_status)[0]
-          })
+          // User subscription loaded successfully - logging removed for security
         } else {
           // No subscription found, create free Basic subscription automatically
-          console.log('📝 No subscription found, creating free Basic subscription...')
+          // No subscription found, creating free Basic subscription
           const newSubscription = await econCanister.get_or_create_free_subscription()
           setCurrentSubscription(newSubscription)
 
-          console.log('✅ Free Basic subscription created:', {
-            tier: newSubscription.tier.name,
-            principal: principal
-          })
+          // Free Basic subscription created successfully - logging removed for security
         }
       } catch (error) {
-        console.error('❌ Failed to load user subscription:', error)
+        // Removed console log
         setError('Failed to load subscription status')
       } finally {
         setLoading(false)
@@ -192,7 +182,7 @@ const Economics = () => {
         setMonthlySpent(0)
       }
     } catch (err) {
-      console.error('Failed to fetch receipts:', err)
+      // Removed console log
     }
   }
 
@@ -244,7 +234,7 @@ const Economics = () => {
     setSubscribeMsg(null)
 
     try {
-      console.log('🔄 Changing to real subscription tier:', tierName)
+      // Removed console log
 
       // Create subscription using economics canister
       const updatedSubscription = await econCanister.create_subscription(tierName, true)
@@ -269,14 +259,14 @@ const Economics = () => {
         setSubscribeMsg(`Switched to ${tierName.charAt(0).toUpperCase() + tierName.slice(1)} Plan successfully!`)
       }
 
-      console.log('✅ Subscription updated:', {
+      // Removed console log
         tier: updatedSubscription.tier.name,
         principal: principal,
         expiresAt: new Date(Number(updatedSubscription.expires_at) / 1000000).toISOString()
       })
 
     } catch (error: any) {
-      console.error('❌ Subscription change failed:', error)
+      // Removed console log
       setSubscribeErr(error.message || 'Subscription change failed')
     } finally {
       setSubscribeLoading(false)
@@ -304,7 +294,7 @@ const Economics = () => {
             if (subscription) {
               setCurrentSubscription(subscription)
             }
-          }).catch(console.error)
+          }).catch(// Removed console log
         }
       }, 60000) // Update every minute
 
@@ -326,7 +316,7 @@ const Economics = () => {
         return result
       }
     } catch (error) {
-      console.error('❌ Quota validation failed:', error)
+      // Removed console log
       return null
     }
   }

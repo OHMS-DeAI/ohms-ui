@@ -5,6 +5,10 @@ import App from './App.tsx'
 import { initializeExtensionErrorSupport } from './utils/extensionErrorSupport'
 import { installConsoleErrorFilter } from './utils/consoleErrorFilter'
 import { fixAriaHiddenIssue } from './utils/accessibilityFix'
+import { disableProductionLogging } from './utils/secureLogger'
+
+// Initialize security measures
+disableProductionLogging()
 
 // Initialize extension error support for legacy wallet extension noise (kept for Brave guidance)
 initializeExtensionErrorSupport()

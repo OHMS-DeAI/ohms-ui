@@ -29,19 +29,19 @@ export const GoogleProfileLinker: React.FC<GoogleProfileLinkerProps> = ({
   const handleLinkGoogle = async () => {
     setLoading(true)
     try {
-      console.log('🔗 User requested Google profile linking...')
+      // Removed console log
       
       const profile = await internetIdentityService.linkGoogleAccountProfile()
       
       if (profile) {
         setLinkedProfile(profile)
         onProfileLinked?.(profile)
-        console.log('✅ Google profile linked successfully in UI')
+        // Removed console log
       } else {
-        console.log('ℹ️ Google profile linking was cancelled or failed')
+        // Removed console log
       }
     } catch (error) {
-      console.error('❌ Failed to link Google profile:', error)
+      // Removed console log
     } finally {
       setLoading(false)
     }
@@ -53,9 +53,9 @@ export const GoogleProfileLinker: React.FC<GoogleProfileLinkerProps> = ({
       await internetIdentityService.unlinkGoogleAccountProfile()
       setLinkedProfile(null)
       onProfileUnlinked?.()
-      console.log('✅ Google profile unlinked successfully')
+      // Removed console log
     } catch (error) {
-      console.error('❌ Failed to unlink Google profile:', error)
+      // Removed console log
     } finally {
       setLoading(false)
     }

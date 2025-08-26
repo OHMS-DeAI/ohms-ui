@@ -110,8 +110,7 @@ describe('Real Google Profile Extraction', () => {
       expect(profile?.name).toBeDefined()
       expect(profile?.verified).toBe(true)
       
-      // Log what we actually got for debugging
-      console.log('Extracted profile:', profile)
+      // Profile extracted successfully - logging removed for security
     })
     
     it('should handle delegation certificates without Google data', async () => {
@@ -206,7 +205,7 @@ describe('Real Google Profile Extraction', () => {
     it('should analyze delegation chain structure correctly', async () => {
       const mockIdentity = createMockIdentity(true)
       
-      // Mock console.log to capture debug output
+      // Mock // Removed console log
       const logSpy = vi.spyOn(console, 'log')
       
       await IIv2CertificateDebugger.analyzeDelegationChain(mockIdentity)
@@ -253,7 +252,7 @@ describe('Real Google Profile Extraction', () => {
       expect(result.extractedStrings || result).toBeDefined()
       
       // Log what was actually extracted
-      console.log('CBOR decode result:', result)
+      // Removed console log
       
       // Check if email was found in any form
       const hasEmail = result.extractedStrings?.some((s: string) => s.includes('test@gmail.com')) ||
@@ -289,7 +288,7 @@ describe('Real Google Profile Extraction', () => {
       expect(userProfile.googleAccount).toBeDefined()
       
       // Log what we got for debugging
-      console.log('User profile:', userProfile)
+      // Removed console log
       
       // Check for any Google account data (real or generated)
       const googleAccount = userProfile.googleAccount

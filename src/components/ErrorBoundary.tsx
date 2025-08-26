@@ -83,11 +83,11 @@ export class ErrorBoundary extends Component<Props, State> {
       url: window.location.href
     }
 
-    console.group(`🚨 Error Boundary Caught Error: ${this.state.errorId}`)
-    console.error('Error:', sanitizedError.message)
-    console.error('Component Stack:', sanitizedError.componentStack)
-    console.error('Stack Trace:', sanitizedError.stack)
-    console.groupEnd()
+    // Error Boundary Caught Error
+    // Removed console log
+    // Removed console log
+    // Removed console log
+    // End error logging
 
     // Store error for potential user support
     try {
@@ -99,7 +99,7 @@ export class ErrorBoundary extends Component<Props, State> {
         errorKeys.slice(0, -5).forEach(key => localStorage.removeItem(key))
       }
     } catch (storageError) {
-      console.warn('Could not store error in localStorage:', storageError)
+      // Removed console log
     }
   }
 
@@ -141,9 +141,9 @@ export class ErrorBoundary extends Component<Props, State> {
         }
 
         // TODO: Implement actual error reporting
-        console.log('Error report prepared:', errorReport)
+        // Removed console log
       } catch (reportingError) {
-        console.error('Failed to report error:', reportingError)
+        // Removed console log
       }
     }
   }
@@ -371,7 +371,7 @@ export function AuthenticationErrorBoundary({ children }: { children: ReactNode 
         </div>
       }
       onError={(error, errorInfo) => {
-        console.error('Authentication Error:', error, errorInfo)
+        // Removed console log
         // Could trigger logout or redirect to login
       }}
     >
@@ -405,7 +405,7 @@ export function PaymentErrorBoundary({ children }: { children: ReactNode }) {
         </div>
       }
       onError={(error, errorInfo) => {
-        console.error('Payment Error:', error, errorInfo)
+        // Removed console log
         // Could trigger payment failure analytics or support notifications
       }}
     >

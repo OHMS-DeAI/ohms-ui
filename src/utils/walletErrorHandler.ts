@@ -124,8 +124,8 @@ export const executeWithRetry = async <T>(
         ? config.delayMs * Math.pow(2, attempt)
         : config.delayMs
         
-      console.log(`🔄 Wallet operation failed, retrying in ${delay}ms (attempt ${attempt + 1}/${config.maxRetries + 1})`)
-      console.log(`   Error: ${walletError.message}`)
+      // Removed console log
+      // Removed console log
       
       await sleep(delay)
     }

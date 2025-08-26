@@ -69,12 +69,12 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({
         setSubscriptionTiers(pricingInfo.tiers)
         setMarketData(pricingInfo.marketData)
 
-        console.log('✅ Subscription data loaded:', {
+        // Removed console log
           hasActive: subscriptionStatus.hasActiveSubscription,
           tier: subscriptionStatus.subscription?.tier
         })
       } catch (error) {
-        console.error('❌ Failed to load subscription data:', error)
+        // Removed console log
         setError('Failed to load subscription information')
       } finally {
         setLoading(false)
@@ -110,7 +110,7 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({
         throw new Error(result.error || 'Upgrade failed')
       }
     } catch (error: any) {
-      console.error('❌ Upgrade failed:', error)
+      // Removed console log
       setError(error.message || 'Failed to upgrade subscription')
     } finally {
       setActionLoading(false)
@@ -140,7 +140,7 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({
         throw new Error(result.error || 'Cancellation failed')
       }
     } catch (error: any) {
-      console.error('❌ Cancellation failed:', error)
+      // Removed console log
       setError(error.message || 'Failed to cancel subscription')
     } finally {
       setActionLoading(false)

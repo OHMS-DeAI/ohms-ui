@@ -104,7 +104,7 @@ const AgentCreator = () => {
       setQuotaValidation(quotaValidation as any)
       
     } catch (err) {
-      console.error('Failed to check subscription and quota:', err)
+      // Removed console log
       setError('Failed to verify subscription status')
     }
   }
@@ -193,7 +193,7 @@ const AgentCreator = () => {
       await checkSubscriptionAndQuota()
 
     } catch (err) {
-      console.error('Failed to create agent:', err)
+      // Removed console log
       setCreationProgress({
         stage: 'error',
         message: 'Failed to create agent. Please try again.',

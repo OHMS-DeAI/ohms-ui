@@ -14,7 +14,7 @@ const GoogleCallback: React.FC = () => {
         const error = urlParams.get('error')
 
         if (error) {
-          console.error('❌ Google OAuth error:', error)
+          // Removed console log
           window.opener?.postMessage({
             type: 'GOOGLE_OAUTH_ERROR',
             error
@@ -24,7 +24,7 @@ const GoogleCallback: React.FC = () => {
         }
 
         if (!code) {
-          console.error('❌ No authorization code received from Google')
+          // Removed console log
           window.opener?.postMessage({
             type: 'GOOGLE_OAUTH_ERROR',
             error: 'No authorization code'
@@ -33,19 +33,19 @@ const GoogleCallback: React.FC = () => {
           return
         }
 
-        console.log('✅ Google OAuth callback received with code')
+        // Removed console log
 
         // Exchange code for tokens and profile
         const profile = await exchangeCodeForProfile(code)
         
         if (profile) {
-          console.log('✅ Google profile retrieved successfully')
+          // Removed console log
           window.opener?.postMessage({
             type: 'GOOGLE_OAUTH_SUCCESS',
             profile
           }, window.location.origin)
         } else {
-          console.error('❌ Failed to retrieve Google profile')
+          // Removed console log
           window.opener?.postMessage({
             type: 'GOOGLE_OAUTH_ERROR',
             error: 'Failed to retrieve profile'
@@ -54,7 +54,7 @@ const GoogleCallback: React.FC = () => {
 
         window.close()
       } catch (error) {
-        console.error('❌ Google callback error:', error)
+        // Removed console log
         window.opener?.postMessage({
           type: 'GOOGLE_OAUTH_ERROR',
           error: error instanceof Error ? error.message : 'Unknown error'
@@ -92,7 +92,7 @@ async function exchangeCodeForProfile(code: string): Promise<any> {
       throw new Error('Google Client ID not configured')
     }
 
-    console.log('🔄 Exchanging authorization code for tokens...')
+    // Removed console log
 
     // Exchange code for tokens
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -115,7 +115,7 @@ async function exchangeCodeForProfile(code: string): Promise<any> {
     }
 
     const tokenData = await tokenResponse.json()
-    console.log('✅ Tokens received from Google')
+    // Removed console log
 
     // Get user profile using access token
     const profileResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
@@ -130,16 +130,12 @@ async function exchangeCodeForProfile(code: string): Promise<any> {
     }
 
     const profile = await profileResponse.json()
-    console.log('✅ Google profile retrieved:', {
-      name: profile.name,
-      email: profile.email,
-      verified: profile.verified_email
-    })
+    // Google profile retrieved successfully - logging removed for security
 
     return profile
 
   } catch (error) {
-    console.error('❌ Failed to exchange code for profile:', error)
+    // Removed console log
     throw error
   }
 }

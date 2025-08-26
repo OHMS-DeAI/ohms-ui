@@ -281,7 +281,7 @@ export class ProfileService {
   constructor(canisterId?: string) {
     // Get canister ID from environment or use provided one
     this.canisterId = canisterId || this.getProfilesCanisterId()
-    console.log('🏗️ ProfileService initialized with canister ID:', this.canisterId)
+    // Removed console log
   }
 
   private getProfilesCanisterId(): string {
@@ -294,7 +294,7 @@ export class ProfileService {
                                (window as any).__VITE_PROFILES_CANISTER_ID__ ||
                                canisterIds.ohms_model // Use existing model canister as fallback
     
-    console.log('🔍 Profile canister ID from environment:', profilesCanisterId)
+    // Removed console log
     return profilesCanisterId
   }
 
@@ -307,17 +307,17 @@ export class ProfileService {
     }
 
     try {
-      console.log('🎭 Creating ProfileService actor for canister:', this.canisterId)
+      // Removed console log
       
       this.actor = Actor.createActor(profileServiceIDL, {
         agent,
         canisterId: this.canisterId
       })
       
-      console.log('✅ ProfileService actor created successfully')
+      // Removed console log
       return this.actor
     } catch (error) {
-      console.error('❌ Failed to create ProfileService actor:', error)
+      // Removed console log
       throw new Error(`Failed to create profile service actor: ${error}`)
     }
   }
@@ -338,22 +338,22 @@ export class ProfileService {
     profilePhotoUrl?: string
   ): Promise<UserProfile> {
     try {
-      console.log('📝 Creating new profile with username:', username)
+      // Removed console log
       
       const actor = await this.createActor(agent)
       const result = await actor.create_profile(username, profilePhotoUrl ? [profilePhotoUrl] : [])
       
       if ('Ok' in result) {
         const profile = result.Ok
-        console.log('✅ Profile created successfully:', profile.username)
+        // Removed console log
         return this.convertCanisterProfile(profile)
       } else {
         const error = Object.keys(result.Err)[0] as keyof typeof result.Err
-        console.error('❌ Profile creation failed:', error, result.Err[error])
+        // Removed console log
         throw new Error(`Profile creation failed: ${error}`)
       }
     } catch (error) {
-      console.error('❌ Error creating profile:', error)
+      // Removed console log
       throw error
     }
   }
@@ -363,21 +363,21 @@ export class ProfileService {
    */
   async getProfile(agent: HttpAgent): Promise<UserProfile | null> {
     try {
-      console.log('📊 Fetching user profile...')
+      // Removed console log
       
       const actor = await this.createActor(agent)
       const result = await actor.get_profile()
       
       if (result && result.length > 0) {
         const profile = result[0]
-        console.log('✅ Profile retrieved:', profile.username)
+        // Removed console log
         return this.convertCanisterProfile(profile)
       } else {
-        console.log('📭 No profile found for user')
+        // Removed console log
         return null
       }
     } catch (error) {
-      console.error('❌ Error fetching profile:', error)
+      // Removed console log
       throw error
     }
   }
@@ -390,7 +390,7 @@ export class ProfileService {
     updates: ProfileUpdates
   ): Promise<UserProfile> {
     try {
-      console.log('🔄 Updating profile with changes:', updates)
+      // Removed console log
       
       const actor = await this.createActor(agent)
       
@@ -406,15 +406,15 @@ export class ProfileService {
       
       if ('Ok' in result) {
         const profile = result.Ok
-        console.log('✅ Profile updated successfully')
+        // Removed console log
         return this.convertCanisterProfile(profile)
       } else {
         const error = Object.keys(result.Err)[0] as keyof typeof result.Err
-        console.error('❌ Profile update failed:', error, result.Err[error])
+        // Removed console log
         throw new Error(`Profile update failed: ${error}`)
       }
     } catch (error) {
-      console.error('❌ Error updating profile:', error)
+      // Removed console log
       throw error
     }
   }
@@ -424,21 +424,21 @@ export class ProfileService {
    */
   async deleteProfile(agent: HttpAgent): Promise<void> {
     try {
-      console.log('🗑️ Deleting user profile...')
+      // Removed console log
       
       const actor = await this.createActor(agent)
       const result = await actor.delete_profile()
       
       if ('Ok' in result) {
-        console.log('✅ Profile deleted successfully')
+        // Removed console log
         this.clearActor() // Clear cached actor
       } else {
         const error = Object.keys(result.Err)[0] as keyof typeof result.Err
-        console.error('❌ Profile deletion failed:', error, result.Err[error])
+        // Removed console log
         throw new Error(`Profile deletion failed: ${error}`)
       }
     } catch (error) {
-      console.error('❌ Error deleting profile:', error)
+      // Removed console log
       throw error
     }
   }
@@ -451,10 +451,10 @@ export class ProfileService {
       const actor = await this.createActor(agent)
       const exists = await actor.profile_exists()
       
-      console.log('🔍 Profile exists:', exists)
+      // Removed console log
       return exists
     } catch (error) {
-      console.error('❌ Error checking if profile exists:', error)
+      // Removed console log
       return false
     }
   }
@@ -467,19 +467,19 @@ export class ProfileService {
     username: string
   ): Promise<UsernameAvailability> {
     try {
-      console.log('🔍 Checking username availability:', username)
+      // Removed console log
       
       const actor = await this.createActor(agent)
       const result = await actor.check_username_availability(username)
       
-      console.log('✅ Username availability result:', result)
+      // Removed console log
       return {
         available: result.available,
         suggestions: result.suggestions,
         reason: result.reason.length > 0 ? result.reason[0] : undefined
       }
     } catch (error) {
-      console.error('❌ Error checking username availability:', error)
+      // Removed console log
       return {
         available: false,
         suggestions: [],
@@ -498,7 +498,7 @@ export class ProfileService {
       
       if (result && result.length > 0) {
         const stats = result[0]
-        console.log('📊 Profile stats retrieved:', stats)
+        // Removed console log
         return {
           creation_date: stats.creation_date,
           total_logins: stats.total_logins,
@@ -509,7 +509,7 @@ export class ProfileService {
         return null
       }
     } catch (error) {
-      console.error('❌ Error fetching profile stats:', error)
+      // Removed console log
       return null
     }
   }
@@ -537,7 +537,7 @@ export class ProfileService {
         return null
       }
     } catch (error) {
-      console.error('❌ Error fetching public profile:', error)
+      // Removed console log
       return null
     }
   }
@@ -551,12 +551,12 @@ export class ProfileService {
       const result = await actor.update_session()
       
       if ('Ok' in result) {
-        console.log('✅ Session updated successfully')
+        // Removed console log
       } else {
-        console.warn('⚠️ Session update failed:', result.Err)
+        // Removed console log
       }
     } catch (error) {
-      console.error('❌ Error updating session:', error)
+      // Removed console log
       // Don't throw - session update is not critical
     }
   }
