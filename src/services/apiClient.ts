@@ -968,11 +968,7 @@ export const createAuthInterceptor = (getIdentity: () => Identity | null): Reque
 export const createLoggingInterceptor = (): ResponseInterceptor => {
   return (response) => {
     if (response.metadata) {
-      // Removed console log
-        success: response.success,
-        duration: response.metadata.duration,
-        error: response.error?.code
-      })
+      // API response logged
     }
     return response
   }

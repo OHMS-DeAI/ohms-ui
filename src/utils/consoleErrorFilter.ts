@@ -34,13 +34,13 @@ const EXTENSION_ERROR_PATTERNS: ErrorPattern[] = [
 
 class ConsoleErrorFilter {
   private static instance: ConsoleErrorFilter
-  private originalError: typeof // Removed console log
-  private originalWarn: typeof // Removed console log
+  private originalError: typeof console.error
+  private originalWarn: typeof console.warn
   private suppressedCount = 0
   
   private constructor() {
-    this.originalError = // Removed console log
-    this.originalWarn = // Removed console log
+    this.originalError = console.error.bind(console)
+    this.originalWarn = console.warn.bind(console)
   }
   
   static getInstance(): ConsoleErrorFilter {
@@ -51,7 +51,7 @@ class ConsoleErrorFilter {
   }
   
   install(): void {
-    // Removed console log
+    console.error = (...args: any[]) => {
       if (this.shouldSuppressMessage(args)) {
         this.suppressedCount++
         return
@@ -59,7 +59,7 @@ class ConsoleErrorFilter {
       this.originalError(...args)
     }
     
-    // Removed console log
+    console.warn = (...args: any[]) => {
       if (this.shouldSuppressMessage(args)) {
         this.suppressedCount++
         return
@@ -69,8 +69,8 @@ class ConsoleErrorFilter {
   }
   
   uninstall(): void {
-    // Removed console log
-    // Removed console log
+    console.error = this.originalError
+    console.warn = this.originalWarn
   }
   
   private shouldSuppressMessage(args: any[]): boolean {

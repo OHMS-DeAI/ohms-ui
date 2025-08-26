@@ -34,12 +34,12 @@ const colors = {
 }
 
 const log = {
-  info: (msg: string) => // Removed console log
-  success: (msg: string) => // Removed console log
-  warning: (msg: string) => // Removed console log
-  error: (msg: string) => // Removed console log
-  header: (msg: string) => // Removed console log
-  subheader: (msg: string) => // Removed console log
+  info: (msg: string) => console.log(`${colors.blue}ℹ${colors.reset} ${msg}`),
+  success: (msg: string) => console.log(`${colors.green}✓${colors.reset} ${msg}`),
+  warning: (msg: string) => console.log(`${colors.yellow}⚠${colors.reset} ${msg}`),
+  error: (msg: string) => console.log(`${colors.red}✗${colors.reset} ${msg}`),
+  header: (msg: string) => console.log(`\n${colors.bright}${colors.cyan}${msg}${colors.reset}`),
+  subheader: (msg: string) => console.log(`${colors.bright}${msg}${colors.reset}`)
 }
 
 interface TestSuite {
@@ -220,7 +220,7 @@ function generateTestReport(results: Array<{ suite: TestSuite; passed: boolean }
     const color = result.passed ? colors.green : colors.red
     const critical = result.suite.critical ? ' (CRITICAL)' : ''
     
-    // Removed console log
+    log.subheader(`  ${color}${result.passed ? '✓' : '✗'}${colors.reset} ${result.suite.name}${critical} - ${result.duration}ms`)
   }
   
   // Overall status

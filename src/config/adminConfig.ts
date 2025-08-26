@@ -74,13 +74,7 @@ export const isAdminPrincipal = (principalId: string): boolean => {
   })
   
   if (import.meta.env.VITE_ADMIN_DEBUG === 'true') {
-    // Removed console log
-      input: principalId,
-      normalized: normalizedInput,
-      adminList: ADMIN_PRINCIPALS,
-      hasAccess,
-      network: CURRENT_NETWORK
-    })
+    // Debug logging for admin access (can be replaced with logger if needed)
   }
   
   return hasAccess

@@ -2,15 +2,24 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import { logger } from './utils/professionalLogger'
+import consoleManager from './utils/consoleOverride'
 import { initializeExtensionErrorSupport } from './utils/extensionErrorSupport'
 import { installConsoleErrorFilter } from './utils/consoleErrorFilter'
 import { fixAriaHiddenIssue } from './utils/accessibilityFix'
-import { disableProductionLogging } from './utils/secureLogger'
 
-// Initialize security measures
-disableProductionLogging()
+// Initialize professional logging system
+logger.info('OHMS 2.0 Application Starting', {
+  environment: import.meta.env.MODE,
+  version: import.meta.env.VITE_APP_VERSION || '2.0.0',
+  production: import.meta.env.PROD
+});
 
-// Initialize extension error support for legacy wallet extension noise (kept for Brave guidance)
+// Install console override system
+consoleManager.install();
+consoleManager.captureGlobalErrors();
+
+// Initialize extension error support for legacy wallet extension noise
 initializeExtensionErrorSupport()
 
 // Install console error filtering to suppress extension errors

@@ -2,6 +2,7 @@ import type { Identity } from '@dfinity/agent'
 import { HttpAgent, Certificate } from '@dfinity/agent'
 import { Principal } from '@dfinity/principal'
 import { AuthClient } from '@dfinity/auth-client'
+import { logger } from '../utils/professionalLogger'
 
 /**
  * Internet Identity v2 Configuration
@@ -94,17 +95,14 @@ export class InternetIdentityService {
         // Get cached user profile or create basic one
         this.currentUser = await this.getUserProfile(principalString)
         
-        // Removed console log
-          principal: principalString,
-          isAnonymous: principal.isAnonymous()
-        })
+        // Authentication successful - user profile loaded
         return true
       }
 
-      // Removed console log
+      logger.info('User not authenticated');
       return false
     } catch (error) {
-      // Removed console log
+      logger.error('Authentication check failed', { error: error instanceof Error ? error.message : 'Unknown error' });
       return false
     }
   }
@@ -188,13 +186,13 @@ export class InternetIdentityService {
       const userProfile = await this.getUserProfile(principalString)
       this.currentUser = userProfile
 
-      // Removed console log
+      logger.info('Authentication successful', {
         principal: principalString,
         isAnonymous: principal.isAnonymous(),
         hasGoogleAccount: !!userProfile.googleAccount,
         googleEmail: userProfile.googleAccount?.email,
         name: userProfile.name
-      })
+      });
 
       return {
         success: true,
@@ -226,11 +224,11 @@ export class InternetIdentityService {
       const googleAccount = await this.extractGoogleAccountInfo()
 
       if (googleAccount) {
-        // Removed console log
+        logger.info('Google account found', {
           email: googleAccount.email,
           name: googleAccount.name,
           verified: googleAccount.verified
-        })
+        });
 
         return {
           principal,
@@ -495,12 +493,7 @@ export class InternetIdentityService {
       // Get the delegation chain from the current identity using proper DFINITY methods
       const delegationChain = (this.currentIdentity as any)._delegation || (this.currentIdentity as any).delegation
       
-      // Removed console log
-        type: typeof delegationChain,
-        isArray: Array.isArray(delegationChain),
-        keys: delegationChain && typeof delegationChain === 'object' ? Object.keys(delegationChain) : 'N/A',
-        structure: delegationChain
-      })
+
       
       if (!delegationChain) {
         // Removed console log
@@ -524,12 +517,6 @@ export class InternetIdentityService {
       // Process each delegation in the chain
       for (let i = 0; i < delegationsArray.length; i++) {
         const delegationItem = delegationsArray[i]
-        // Removed console log
-          type: typeof delegationItem,
-          keys: delegationItem && typeof delegationItem === 'object' ? Object.keys(delegationItem) : 'N/A',
-          hasDelgation: 'delegation' in delegationItem,
-          hasSignature: 'signature' in delegationItem
-        })
         
         try {
           // Extract the actual delegation certificate
@@ -541,12 +528,7 @@ export class InternetIdentityService {
             continue
           }
           
-          // Removed console log
-            delegationType: typeof delegationCert,
-            delegationKeys: delegationCert && typeof delegationCert === 'object' ? Object.keys(delegationCert) : 'N/A',
-            signatureType: typeof signature,
-            signatureLength: signature && signature.length ? signature.length : 'N/A'
-          })
+
           
           // Try to decode the delegation certificate using DFINITY Certificate class
           const googleProfile = await this.decodeDelegationCertificate(delegationCert, signature)
@@ -691,11 +673,7 @@ export class InternetIdentityService {
       
       // Get authentication details from the auth client
       const identity = this.authClient.getIdentity()
-      // Removed console log
-        type: typeof identity,
-        constructor: identity?.constructor?.name,
-        keys: identity && typeof identity === 'object' ? Object.keys(identity) : 'N/A'
-      })
+
       
       // Enhanced certificate source detection
       const certificateSources = [
@@ -726,12 +704,7 @@ export class InternetIdentityService {
         const certificates = certificateSources[sourceIndex]
         if (!certificates) continue
         
-        // Removed console log
-          type: typeof certificates,
-          isArray: Array.isArray(certificates),
-          length: Array.isArray(certificates) ? certificates.length : 'N/A',
-          keys: certificates && typeof certificates === 'object' && !Array.isArray(certificates) ? Object.keys(certificates) : 'N/A'
-        })
+
         
         // Strategy 1: Parse as JWT tokens first
         const jwtProfile = await this.parseJWTTokens(certificates)
@@ -745,12 +718,7 @@ export class InternetIdentityService {
         
         for (let i = 0; i < certArray.length; i++) {
           const cert = certArray[i]
-          // Removed console log
-            type: typeof cert,
-            isUint8Array: cert instanceof Uint8Array,
-            isArrayBuffer: cert instanceof ArrayBuffer,
-            keys: cert && typeof cert === 'object' && !ArrayBuffer.isView(cert) ? Object.keys(cert) : 'N/A'
-          })
+
           
           try {
             // Enhanced certificate decoding with JWT support
@@ -923,13 +891,7 @@ export class InternetIdentityService {
   private async decodeDelegationCertificate(delegationCert: any, _signature?: any): Promise<GoogleAccountInfo | null> {
     try {
       // Removed console log
-      // Removed console log
-        type: typeof delegationCert,
-        keys: delegationCert && typeof delegationCert === 'object' ? Object.keys(delegationCert) : 'N/A',
-        constructor: delegationCert?.constructor?.name,
-        isUint8Array: delegationCert instanceof Uint8Array,
-        isArrayBuffer: delegationCert instanceof ArrayBuffer
-      })
+
       
       if (!delegationCert) {
         // Removed console log
@@ -1389,14 +1351,7 @@ export class InternetIdentityService {
       if (depth > maxDepth) return
       
       const indent = '  '.repeat(depth)
-      // Removed console log
-        type: typeof cert,
-        constructor: cert?.constructor?.name,
-        isArray: Array.isArray(cert),
-        isUint8Array: cert instanceof Uint8Array,
-        isArrayBuffer: cert instanceof ArrayBuffer,
-        length: cert instanceof ArrayBuffer ? cert.byteLength : (cert && typeof cert === 'object' && 'length' in cert ? (cert as any).length : (cert && typeof cert === 'object' ? Object.keys(cert).length : 'N/A'))
-      })
+
       
       if (cert instanceof Uint8Array || cert instanceof ArrayBuffer) {
         const length = cert instanceof ArrayBuffer ? cert.byteLength : (cert as Uint8Array).length
@@ -1791,12 +1746,7 @@ export class IIv2CertificateDebugger {
         return
       }
       
-      // Removed console log
-        principal: user.principal,
-        hasGoogleAccount: !!user.googleAccount,
-        googleEmail: user.googleAccount?.email,
-        generated: user.googleAccount?.generated
-      })
+
       
       // Analyze delegation chain
       await IIv2CertificateDebugger.analyzeDelegationChain(identity)

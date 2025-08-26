@@ -8,7 +8,9 @@ export const host = RESOLVED_HOST;
 export const agent = new HttpAgent({ host });
 if (NETWORK !== 'ic') {
   // Fetch the root key for local development to validate certificates
-  agent.fetchRootKey?.().catch(() => // Removed console log
+  agent.fetchRootKey?.().catch(() => {
+    // Ignore root key fetch errors in local development
+  });
 }
 
 // Canister IDs from env via network config

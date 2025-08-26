@@ -1,167 +1,61 @@
 /**
- * Secure Logger Utility
- * Provides secure logging that prevents sensitive data leaks in production
+ * Secure Logger Migration to Professional Logging System
+ * 
+ * DEPRECATED: This file is being migrated to the new professional logging system.
+ * Import { logger } from './professionalLogger' instead of this file.
+ * 
+ * This file provides backward compatibility for existing code.
  */
 
+import { logger, logError, logOperation } from './professionalLogger';
+
+// Legacy compatibility type
 type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
-interface LogConfig {
-  enableConsoleInDev: boolean
-  enableConsoleInProd: boolean
-  sensitiveDataPatterns: RegExp[]
-  maxLogLength: number
-}
-
-const DEFAULT_CONFIG: LogConfig = {
-  enableConsoleInDev: true,
-  enableConsoleInProd: false,
-  sensitiveDataPatterns: [
-    /principal/i,
-    /password/i,
-    /token/i,
-    /key/i,
-    /secret/i,
-    /auth/i,
-    /email/i,
-    /phone/i,
-    /address/i,
-    /id:[a-zA-Z0-9-_]+/g,
-    /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, // Email pattern
-    /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g // UUID pattern
-  ],
-  maxLogLength: 500
-}
-
 class SecureLogger {
-  private config: LogConfig
-  private isDevelopment: boolean
-
-  constructor(config: Partial<LogConfig> = {}) {
-    this.config = { ...DEFAULT_CONFIG, ...config }
-    this.isDevelopment = import.meta.env.MODE === 'development'
-  }
-
-  private sanitizeMessage(message: any): string {
-    if (typeof message === 'object') {
-      try {
-        message = JSON.stringify(message, this.sensitiveDataReplacer)
-      } catch {
-        message = '[Object - could not serialize safely]'
-      }
-    }
-
-    let sanitized = String(message)
-
-    // Remove sensitive data patterns
-    this.config.sensitiveDataPatterns.forEach(pattern => {
-      sanitized = sanitized.replace(pattern, '[REDACTED]')
-    })
-
-    // Truncate if too long
-    if (sanitized.length > this.config.maxLogLength) {
-      sanitized = sanitized.substring(0, this.config.maxLogLength) + '[TRUNCATED]'
-    }
-
-    return sanitized
-  }
-
-  private sensitiveDataReplacer(key: string, value: any): any {
-    const sensitiveKeys = [
-      'principal', 'password', 'token', 'secret', 'key', 'auth',
-      'email', 'phone', 'address', 'id', 'googleAccount', 'profile'
-    ]
-    
-    if (sensitiveKeys.some(k => key.toLowerCase().includes(k))) {
-      return '[REDACTED]'
-    }
-    
-    return value
-  }
-
-  private shouldLog(): boolean {
-    return this.isDevelopment ? 
-      this.config.enableConsoleInDev : 
-      this.config.enableConsoleInProd
-  }
-
-  private formatLogMessage(level: LogLevel, message: any, context?: any): string {
-    const timestamp = new Date().toISOString()
-    const sanitizedMessage = this.sanitizeMessage(message)
-    const sanitizedContext = context ? this.sanitizeMessage(context) : ''
-    
-    return `[${timestamp}] [${level.toUpperCase()}] ${sanitizedMessage}${sanitizedContext ? ' | Context: ' + sanitizedContext : ''}`
+  constructor() {
+    // Migration notice
+    logger.warn('SecureLogger is deprecated. Use professionalLogger instead.', {
+      migration: 'Replace with: import { logger } from "./professionalLogger"'
+    });
   }
 
   debug(message: any, context?: any): void {
-    if (this.shouldLog()) {
-      // Removed console log
-    }
+    logger.debug(String(message), typeof context === 'object' ? context : { context });
   }
 
   info(message: any, context?: any): void {
-    if (this.shouldLog()) {
-      // Removed console log
-    }
+    logger.info(String(message), typeof context === 'object' ? context : { context });
   }
 
   warn(message: any, context?: any): void {
-    if (this.shouldLog()) {
-      // Removed console log
-    }
+    logger.warn(String(message), typeof context === 'object' ? context : { context });
   }
 
   error(message: any, context?: any): void {
-    if (this.shouldLog()) {
-      // Removed console log
-    }
+    logger.error(String(message), typeof context === 'object' ? context : { context });
   }
 
   // Safe logging methods that always sanitize
   safeLog(message: any, context?: any): void {
-    if (this.isDevelopment) {
-      this.info(`SAFE: ${message}`, context)
-    }
+    logger.info(`SAFE: ${String(message)}`, typeof context === 'object' ? context : { context });
   }
 
   // Production-safe error logging
   prodError(message: string, errorCode?: string): void {
-    if (this.config.enableConsoleInProd || this.isDevelopment) {
-      const safeMessage = errorCode ? 
-        `Error ${errorCode}: ${this.sanitizeMessage(message)}` : 
-        this.sanitizeMessage(message)
-      // Removed console log
-    }
+    logger.error(errorCode ? `Error ${errorCode}: ${message}` : message, { errorCode });
   }
 }
 
-// Global secure logger instance
+// Global secure logger instance (for backward compatibility)
 export const secureLogger = new SecureLogger()
 
-// Utility function to disable all console logging in production
+// Professional logging system is now handling console overrides
 export const disableProductionLogging = (): void => {
-  if (import.meta.env.PROD) {
-    const noop = () => {}
-    // Removed console log
-    // Removed console log
-    // Removed console log
-    // Removed console log
-    // Keep // Removed console log
-    const originalError = // Removed console log
-    // Removed console log
-      const sanitizedArgs = args.map(arg => 
-        typeof arg === 'string' ? 
-          arg.replace(/principal[a-zA-Z0-9-_]*/gi, '[PRINCIPAL-REDACTED]')
-             .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL-REDACTED]') :
-          '[REDACTED]'
-      )
-      originalError('[PROD-ERROR]', ...sanitizedArgs)
-    }
-  }
+  logger.warn('disableProductionLogging is deprecated. Console management is now automatic.');
 }
 
-// Initialize production logging security
-if (import.meta.env.PROD) {
-  disableProductionLogging()
-}
+// Re-export professional logger for easy migration
+export { logger, logError, logOperation } from './professionalLogger';
 
 export default secureLogger

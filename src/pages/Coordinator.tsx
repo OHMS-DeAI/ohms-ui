@@ -1,11 +1,17 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useAgent } from '../context/AgentContext';
+import { logger } from '../utils/professionalLogger';
 import { 
   createAgentsFromInstructions, 
   executeCoordinatorWorkflow, 
   sendMessageToAgent, 
   bindAgentAndWireRoutes 
 } from '../services/canisterService';
+import { useConnectionManager } from '../hooks/useConnectionManager';
+import type { ConnectionHandle } from '../hooks/useConnectionManager';
+import { ConnectionHandleComponent } from '../components/workflow/ConnectionHandle';
+import { ConnectionLayer } from '../components/workflow/ConnectionLayer';
+import { WorkflowNodeComponent } from '../components/workflow/WorkflowNode';
 
 // Types for the workflow system
 interface WorkflowNode {
@@ -43,21 +49,33 @@ interface Workflow {
 const Coordinator: React.FC = () => {
   const { isConnected } = useAgent();
   const canvasRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [draggedNode, setDraggedNode] = useState<WorkflowNode | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [connectingFrom, setConnectingFrom] = useState<WorkflowNode | null>(null);
   const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
   const [showConfigPanel, setShowConfigPanel] = useState(false);
-  const [temporaryLine, setTemporaryLine] = useState<{x1: number, y1: number, x2: number, y2: number} | null>(null);
   const [draggedNodePosition, setDraggedNodePosition] = useState<{id: string, x: number, y: number} | null>(null);
   const [showInteractionPanel, setShowInteractionPanel] = useState(false);
   const [selectedAgentForInteraction, setSelectedAgentForInteraction] = useState<string | null>(null);
   const [interactionMessage, setInteractionMessage] = useState('');
   const [interactionHistory, setInteractionHistory] = useState<{role: string, message: string, timestamp: Date}[]>([]);
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+
+  // Connection management
+  const connectionManager = useConnectionManager();
+  const { 
+    isDragging: isConnecting, 
+    dragConnection, 
+    snapTarget,
+    hoveredHandle,
+    startConnection, 
+    updateConnection, 
+    completeConnection, 
+    cancelConnection,
+    setHoveredHandle,
+    handleKeyDown
+  } = connectionManager;
 
   // Available node types for the workflow
   const nodeTypes = [
@@ -66,6 +84,216 @@ const Coordinator: React.FC = () => {
     { type: 'condition', label: 'Condition', icon: '🔀', color: 'from-green-500 to-teal-500' },
     { type: 'action', label: 'Action', icon: '⚙️', color: 'from-red-500 to-pink-500' },
   ];
+
+  // Generate connection handles for a node
+  const generateConnectionHandles = useCallback((node: WorkflowNode): ConnectionHandle[] => {
+    const handles: ConnectionHandle[] = [];
+    const nodeWidth = 160;
+    const nodeHeight = 96;
+    const centerX = node.position.x + nodeWidth / 2;
+    const centerY = node.position.y + nodeHeight / 2;
+
+    // Top handle (input)
+    handles.push({
+      id: `${node.id}-top`,
+      nodeId: node.id,
+      type: 'input',
+      position: { x: centerX, y: node.position.y }
+    });
+
+    // Bottom handle (output)
+    handles.push({
+      id: `${node.id}-bottom`,
+      nodeId: node.id,
+      type: 'output',
+      position: { x: centerX, y: node.position.y + nodeHeight }
+    });
+
+    // Right handle (output for horizontal connections)
+    handles.push({
+      id: `${node.id}-right`,
+      nodeId: node.id,
+      type: 'output',
+      position: { x: node.position.x + nodeWidth, y: centerY }
+    });
+
+    // Left handle (input for horizontal connections)
+    handles.push({
+      id: `${node.id}-left`,
+      nodeId: node.id,
+      type: 'input',
+      position: { x: node.position.x, y: centerY }
+    });
+
+    return handles;
+  }, []);
+
+  // Get all available handles - memoized for performance
+  const allHandles = useMemo((): ConnectionHandle[] => {
+    if (!selectedWorkflow) return [];
+    return selectedWorkflow.nodes.flatMap(generateConnectionHandles);
+  }, [selectedWorkflow?.nodes, generateConnectionHandles]);
+
+  // Node type map for quick lookup
+  const nodeTypeMap = useMemo(() => {
+    return new Map(nodeTypes.map(type => [type.type, type]));
+  }, []);
+
+  // Memoized handle mouse handlers
+  const handleMouseHandlers = useMemo(() => ({
+    onHandleMouseEnter: (handleId: string) => setHoveredHandle(handleId),
+    onHandleMouseLeave: () => setHoveredHandle(null)
+  }), [setHoveredHandle]);
+
+  // Create new workflow
+  const createWorkflow = useCallback(() => {
+    const newWorkflow: Workflow = {
+      id: `wf_${Date.now()}`,
+      name: 'New Workflow',
+      description: 'A new multi-agent workflow',
+      nodes: [],
+      connections: [],
+      status: 'draft',
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+    setWorkflows(prev => [...prev, newWorkflow]);
+    setSelectedWorkflow(newWorkflow);
+    setIsCreating(false);
+  }, []);
+
+  // Execute workflow with real agents
+  const executeWorkflow = useCallback(async () => {
+    if (!selectedWorkflow) return;
+
+    // Update workflow status
+    setSelectedWorkflow(prev => {
+      if (!prev) return prev;
+      return { ...prev, status: 'active' as const };
+    });
+
+    try {
+      // Use the new coordinator workflow execution service
+      const result = await executeCoordinatorWorkflow(selectedWorkflow);
+
+      if (result.success) {
+        // Update nodes with agent IDs and responses
+        setSelectedWorkflow(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            nodes: prev.nodes.map(node => {
+              const nodeResult = result.results.find((r: any) => r.nodeId === node.id);
+              if (nodeResult) {
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    config: {
+                      ...node.data.config,
+                      agentId: nodeResult.agentId,
+                      status: 'running',
+                      lastResponse: nodeResult.response
+                    }
+                  }
+                };
+              }
+              return node;
+            }),
+            updated_at: new Date(),
+          };
+        });
+      }
+    } catch (error) {      
+      // Update workflow status to error
+      setSelectedWorkflow(prev => {
+        if (!prev) return prev;
+        return { ...prev, status: 'paused' as const };
+      });
+      
+      // Show user-friendly error
+      alert(`Workflow execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }, [selectedWorkflow]);
+
+  // Stop workflow execution
+  const stopWorkflow = useCallback(() => {
+    if (!selectedWorkflow) return;
+
+    setSelectedWorkflow(prev => {
+      if (!prev) return prev;
+      return { 
+        ...prev, 
+        status: 'paused' as const,
+        nodes: prev.nodes.map(node => ({
+          ...node,
+          data: { ...node.data, status: 'stopped' }
+        }))
+      };
+    });
+  }, [selectedWorkflow]);
+
+  // Keyboard event handling
+  useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      handleKeyDown(event);
+      
+      // Prevent browser shortcuts when workflow is selected
+      if (selectedWorkflow && !event.ctrlKey && !event.metaKey) {
+        // Escape: Cancel connection or close modals
+        if (event.key === 'Escape') {
+          if (isConnecting) {
+            cancelConnection();
+            event.preventDefault();
+          } else if (showConfigPanel) {
+            setShowConfigPanel(false);
+            event.preventDefault();
+          } else if (showInteractionPanel) {
+            setShowInteractionPanel(false);
+            event.preventDefault();
+          }
+        }
+        
+        // Space: Execute workflow
+        if (event.key === ' ' && selectedWorkflow.nodes.length > 0) {
+          event.preventDefault();
+          if (selectedWorkflow.status === 'active') {
+            stopWorkflow();
+          } else {
+            executeWorkflow();
+          }
+        }
+
+        // N: Create new workflow
+        if (event.key === 'n' || event.key === 'N') {
+          event.preventDefault();
+          createWorkflow();
+        }
+
+        // S: Save workflow (placeholder for future implementation)
+        if (event.key === 's' || event.key === 'S') {
+          event.preventDefault();
+          // Could implement save workflow functionality
+          logger.info('Save workflow shortcut (not implemented)', { feature: 'keyboard_shortcuts' });
+        }
+
+        // ?: Show keyboard shortcuts help
+        if (event.key === '?' || (event.shiftKey && event.key === '/')) {
+          event.preventDefault();
+          setShowKeyboardShortcuts(true);
+        }
+      }
+      
+      // Global shortcuts (work regardless of selection)
+      if ((event.ctrlKey || event.metaKey) && event.key === 'n') {
+        event.preventDefault();
+        createWorkflow();
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [handleKeyDown, selectedWorkflow, isConnecting, showConfigPanel, showInteractionPanel, cancelConnection, executeWorkflow, stopWorkflow, createWorkflow]);
 
   // Calculate optimal position for new node to avoid overlap
   const calculateOptimalPosition = useCallback((basePosition: { x: number; y: number }) => {
@@ -127,23 +355,6 @@ const Coordinator: React.FC = () => {
 
     return position;
   }, [selectedWorkflow]);
-
-  // Create new workflow
-  const createWorkflow = useCallback(() => {
-    const newWorkflow: Workflow = {
-      id: `wf_${Date.now()}`,
-      name: 'New Workflow',
-      description: 'A new multi-agent workflow',
-      nodes: [],
-      connections: [],
-      status: 'draft',
-      created_at: new Date(),
-      updated_at: new Date(),
-    };
-    setWorkflows(prev => [...prev, newWorkflow]);
-    setSelectedWorkflow(newWorkflow);
-    setIsCreating(false);
-  }, []);
 
   // Add node to workflow
   const addNode = useCallback((type: string, position: { x: number; y: number }) => {
@@ -226,19 +437,34 @@ const Coordinator: React.FC = () => {
     return `M ${sourceX} ${sourceY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${targetX} ${targetY}`;
   }, []);
 
-  // Create connection between nodes
-  const createConnection = useCallback((sourceNode: WorkflowNode, targetNode: WorkflowNode) => {
-    if (!selectedWorkflow || sourceNode.id === targetNode.id) return;
+  // Create connection between handles
+  const createConnectionFromHandles = useCallback((sourceHandle: ConnectionHandle, targetHandle: ConnectionHandle) => {
+    if (!selectedWorkflow) return;
 
-    const connectionId = `conn_${sourceNode.id}_${targetNode.id}`;
+    // Find the nodes
+    const sourceNode = selectedWorkflow.nodes.find(n => n.id === sourceHandle.nodeId);
+    const targetNode = selectedWorkflow.nodes.find(n => n.id === targetHandle.nodeId);
+    
+    if (!sourceNode || !targetNode) return;
+
+    const connectionId = `conn_${sourceHandle.id}_${targetHandle.id}`;
     const path = calculateConnectionPath(sourceNode, targetNode);
 
     const newConnection: WorkflowConnection = {
       id: connectionId,
       sourceId: sourceNode.id,
       targetId: targetNode.id,
+      sourceHandle: sourceHandle.id,
+      targetHandle: targetHandle.id,
       path,
     };
+
+    // Check for duplicate connections
+    const existingConnection = selectedWorkflow.connections.find(conn => 
+      conn.sourceId === sourceNode.id && conn.targetId === targetNode.id
+    );
+
+    if (existingConnection) return;
 
     setSelectedWorkflow(prev => {
       if (!prev) return prev;
@@ -248,70 +474,40 @@ const Coordinator: React.FC = () => {
         updated_at: new Date(),
       };
     });
-
-    setIsConnecting(false);
-    setConnectingFrom(null);
   }, [selectedWorkflow, calculateConnectionPath]);
 
-  // Handle node connection start
-  const handleNodeConnectionStart = useCallback((e: React.MouseEvent, node: WorkflowNode) => {
-    e.stopPropagation();
-    
-    if (isConnecting && connectingFrom) {
-      // If already connecting, cancel the current connection
-      setConnectingFrom(null);
-      setIsConnecting(false);
-      setTemporaryLine(null);
-      return;
-    }
-    
-    // Start new connection
-    setConnectingFrom(node);
-    setIsConnecting(true);
-    
-    // Set up temporary line from node center
-    const nodeX = node.position.x + 80; // Center of 160px wide node
-    const nodeY = node.position.y + 40; // Center of 80px high node
-    
-    setTemporaryLine({
-      x1: nodeX,
-      y1: nodeY,
-      x2: nodeX,
-      y2: nodeY
-    });
-  }, [isConnecting, connectingFrom]);
+  // Handle connection drag start
+  const handleConnectionStart = useCallback((handle: ConnectionHandle, event: React.MouseEvent) => {
+    if (!canvasRef.current) return;
 
-  // Handle node connection end
-  const handleNodeConnectionEnd = useCallback((e: React.MouseEvent, node: WorkflowNode) => {
-    e.stopPropagation();
-    
-    if (!isConnecting || !connectingFrom) {
-      return;
-    }
-    
-    if (connectingFrom.id === node.id) {
-      return;
-    }
-    
-    // Create the connection
-    createConnection(connectingFrom, node);
-    
-    // Reset connection state
-    setConnectingFrom(null);
-    setIsConnecting(false);
-    setTemporaryLine(null);
-  }, [isConnecting, connectingFrom, createConnection]);
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mousePosition = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top
+    };
 
-  // Handle canvas mouse move for temporary line
+    startConnection(handle, mousePosition);
+  }, [startConnection]);
+
+  // Handle mouse move during connection drag
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isConnecting || !connectingFrom || !canvasRef.current) return;
+    if (!isConnecting || !canvasRef.current) return;
     
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    setTemporaryLine(prev => prev ? { ...prev, x2: x, y2: y } : null);
-  }, [isConnecting, connectingFrom]);
+    const mousePosition = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+
+    updateConnection(mousePosition, allHandles);
+  }, [isConnecting, allHandles, updateConnection]);
+
+  // Handle mouse up to complete connection
+  const handleCanvasMouseUp = useCallback(() => {
+    if (isConnecting) {
+      completeConnection(createConnectionFromHandles);
+    }
+  }, [isConnecting, completeConnection, createConnectionFromHandles]);
 
   // Handle node click for configuration
   const handleNodeClick = useCallback((node: WorkflowNode) => {
@@ -331,77 +527,6 @@ const Coordinator: React.FC = () => {
           node.id === nodeId ? { ...node, data: { ...node.data, config } } : node
         ),
         updated_at: new Date(),
-      };
-    });
-  }, [selectedWorkflow]);
-
-  // Execute workflow with real agents
-  const executeWorkflow = useCallback(async () => {
-    if (!selectedWorkflow) return;
-
-    // Update workflow status
-    setSelectedWorkflow(prev => {
-      if (!prev) return prev;
-      return { ...prev, status: 'active' as const };
-    });
-
-    try {
-      // Use the new coordinator workflow execution service
-      const result = await executeCoordinatorWorkflow(selectedWorkflow);
-
-      if (result.success) {
-        // Update nodes with agent IDs and responses
-        setSelectedWorkflow(prev => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            nodes: prev.nodes.map(node => {
-              const nodeResult = result.results.find((r: any) => r.nodeId === node.id);
-              if (nodeResult) {
-                return {
-                  ...node,
-                  data: {
-                    ...node.data,
-                    config: {
-                      ...node.data.config,
-                      agentId: nodeResult.agentId,
-                      status: 'running',
-                      lastResponse: nodeResult.response
-                    }
-                  }
-                };
-              }
-              return node;
-            }),
-            updated_at: new Date(),
-          };
-        });
-      }
-    } catch (error) {      
-      // Update workflow status to error
-      setSelectedWorkflow(prev => {
-        if (!prev) return prev;
-        return { ...prev, status: 'paused' as const };
-      });
-      
-      // Show user-friendly error
-      alert(`Workflow execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }, [selectedWorkflow]);
-
-  // Stop workflow execution
-  const stopWorkflow = useCallback(() => {
-    if (!selectedWorkflow) return;
-
-    setSelectedWorkflow(prev => {
-      if (!prev) return prev;
-      return { 
-        ...prev, 
-        status: 'paused' as const,
-        nodes: prev.nodes.map(node => ({
-          ...node,
-          data: { ...node.data, status: 'stopped' }
-        }))
       };
     });
   }, [selectedWorkflow]);
@@ -480,6 +605,15 @@ const Coordinator: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowKeyboardShortcuts(true)}
+                className="px-3 py-2 bg-surface-light border border-border text-text-secondary rounded-lg hover:text-text-primary hover:border-secondary transition-all duration-300"
+                title="Keyboard shortcuts (?)"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
               <button
                 onClick={createWorkflow}
                 className="px-4 py-2 bg-gradient-to-r from-secondary to-accent text-white rounded-lg hover:shadow-lg transition-all duration-300 flex items-center gap-2"
@@ -620,21 +754,18 @@ const Coordinator: React.FC = () => {
                     onDrop={handleCanvasDrop}
                     onDragOver={handleDragOver}
                     onMouseMove={handleCanvasMouseMove}
+                    onMouseUp={handleCanvasMouseUp}
                   >
                     {/* Connection Status Indicator */}
-                    {isConnecting && connectingFrom && (
-                      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-accent-success/90 text-white px-4 py-2 rounded-lg shadow-lg z-10 flex items-center gap-2">
+                    {isConnecting && dragConnection && (
+                      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-green-500/90 text-white px-4 py-2 rounded-lg shadow-lg z-10 flex items-center gap-2">
                         <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
                         <span className="text-sm font-medium">
-                          Connecting from "{connectingFrom.data.label}" - Click a target node
+                          {snapTarget ? 'Release to connect' : 'Drag to an input handle to connect'}
                         </span>
                         <button
-                          onClick={() => {
-                            setIsConnecting(false);
-                            setConnectingFrom(null);
-                            setTemporaryLine(null);
-                          }}
-                          className="text-white hover:text-gray-200"
+                          onClick={cancelConnection}
+                          className="text-white hover:text-gray-200 ml-2"
                         >
                           ✕
                         </button>
@@ -653,199 +784,46 @@ const Coordinator: React.FC = () => {
                       </svg>
                     </div>
 
-                    {/* Render Nodes */}
+                    {/* Render Nodes with Connection Handles */}
                     {selectedWorkflow.nodes.map((node) => {
-                      const nodeType = nodeTypes.find(nt => nt.type === node.type);
+                      const nodeType = nodeTypeMap.get(node.type);
+                      const nodeHandles = generateConnectionHandles(node);
+                      
                       return (
-                        <div
+                        <WorkflowNodeComponent
                           key={node.id}
-                          className={`absolute w-40 h-24 rounded-xl border border-border shadow-lg cursor-pointer bg-gradient-to-r ${nodeType?.color || 'from-gray-500 to-gray-600'} flex flex-col items-center justify-center text-white font-semibold text-sm hover:shadow-xl transition-all duration-300`}
-                          style={{
-                            left: node.position.x,
-                            top: node.position.y,
-                            transform: 'translate(-50%, -50%)',
-                          }}
-                          onClick={() => handleNodeClick(node)}
-                          draggable
-                          onDragStart={() => handleNodeDragStart(node)}
-                        >
-                          {/* Node Header */}
-                          <div className="flex items-center justify-between w-full px-3 py-1 border-b border-white/20">
-                            <span className="text-xs font-medium">{node.data.label}</span>
-                            <div className="text-sm">{nodeType?.icon}</div>
-                          </div>
-
-                          {/* Node Content */}
-                          <div className="flex-1 flex items-center justify-center px-3 py-2">
-                            <div className="text-center">
-                              <div className="text-xs opacity-90">
-                                {node.type === 'agent' && node.data.config?.agentId ? (
-                                  <div className="flex items-center gap-1 justify-center">
-                                    <div className={`w-1.5 h-1.5 rounded-full ${
-                                      node.data.config?.status === 'running' ? 'bg-green-400 animate-pulse' : 
-                                      node.data.config?.status === 'stopped' ? 'bg-red-400' : 
-                                      'bg-blue-400'
-                                    }`}></div>
-                                    <span>
-                                      {node.data.config?.status === 'running' ? 'Running' : 
-                                       node.data.config?.status === 'stopped' ? 'Stopped' : 
-                                       'Ready'}
-                                    </span>
-                                  </div>
-                                ) : node.type === 'agent' && node.data.config?.instructions ? (
-                                  'Configured'
-                                ) : (
-                                  'Click to configure'
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Connection Points */}
-                          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-                            <div
-                              className={`w-4 h-4 rounded-full border-2 cursor-pointer transition-all duration-200 ${
-                                isConnecting && connectingFrom?.id === node.id
-                                  ? 'bg-secondary border-secondary shadow-lg scale-125'
-                                  : isConnecting && connectingFrom && connectingFrom.id !== node.id
-                                  ? 'bg-accent-success border-accent-success hover:scale-110 animate-pulse'
-                                  : 'bg-white border-gray-600 hover:bg-secondary hover:border-secondary hover:scale-110'
-                              }`}
-                              onClick={(e) => {
-                                handleNodeConnectionStart(e, node);
-                              }}
-                              title="Click to start connection"
-                            />
-                          </div>
-                          <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
-                            <div
-                              className={`w-4 h-4 rounded-full border-2 cursor-pointer transition-all duration-200 ${
-                                isConnecting && connectingFrom && connectingFrom.id !== node.id
-                                  ? 'bg-accent-success border-accent-success hover:scale-110 animate-pulse'
-                                  : isConnecting && connectingFrom?.id === node.id
-                                  ? 'bg-gray-400 border-gray-400 cursor-not-allowed'
-                                  : 'bg-white border-gray-600 hover:bg-accent-success hover:border-accent-success hover:scale-110'
-                              }`}
-                              onClick={(e) => {
-                                handleNodeConnectionEnd(e, node);
-                              }}
-                              title={isConnecting ? "Click to complete connection" : "Connection target"}
-                            />
-                          </div>
-                        </div>
+                          node={node}
+                          nodeType={nodeType}
+                          handles={nodeHandles}
+                          isConnecting={isConnecting}
+                          hoveredHandle={hoveredHandle}
+                          snapTarget={snapTarget}
+                          onNodeClick={handleNodeClick}
+                          onNodeDragStart={handleNodeDragStart}
+                          onConnectionStart={handleConnectionStart}
+                          onHandleMouseEnter={handleMouseHandlers.onHandleMouseEnter}
+                          onHandleMouseLeave={handleMouseHandlers.onHandleMouseLeave}
+                        />
                       );
                     })}
 
-                    {/* Connection Lines */}
-                    <svg 
-                      ref={svgRef}
-                      className="absolute inset-0 pointer-events-none w-full h-full"
-                      style={{ zIndex: 1 }}
-                    >
-                      {/* Temporary connection line */}
-                      {temporaryLine && (
-                        <g>
-                          <line
-                            x1={temporaryLine.x1}
-                            y1={temporaryLine.y1}
-                            x2={temporaryLine.x2}
-                            y2={temporaryLine.y2}
-                            stroke="#10b981"
-                            strokeWidth="3"
-                            strokeDasharray="8,4"
-                            className="animate-pulse"
-                          />
-                          {/* Connection indicator at end */}
-                          <circle
-                            cx={temporaryLine.x2}
-                            cy={temporaryLine.y2}
-                            r="6"
-                            fill="#10b981"
-                            className="animate-ping"
-                          />
-                          <circle
-                            cx={temporaryLine.x2}
-                            cy={temporaryLine.y2}
-                            r="3"
-                            fill="#ffffff"
-                          />
-                        </g>
-                      )}
-                      
-                      {selectedWorkflow.connections.map((connection) => {
-                        const sourceNode = selectedWorkflow.nodes.find(n => n.id === connection.sourceId);
-                        const targetNode = selectedWorkflow.nodes.find(n => n.id === connection.targetId);
-
-                        if (!sourceNode || !targetNode) return null;
-
-                        // Calculate curved path
-                        const path = calculateConnectionPath(sourceNode, targetNode);
-
-                        return (
-                          <g key={connection.id}>
-                            {/* Shadow for better visibility */}
-                            <path
-                              d={path}
-                              stroke="rgba(0,0,0,0.2)"
-                              strokeWidth="4"
-                              fill="none"
-                              transform="translate(2,2)"
-                            />
-                            {/* Main connection path */}
-                            <path
-                              d={path}
-                              stroke="#6366f1"
-                              strokeWidth="3"
-                              fill="none"
-                              markerEnd="url(#arrowhead)"
-                              className="hover:stroke-blue-400 transition-colors cursor-pointer"
-                            />
-                            {/* Connection delete button */}
-                            <circle
-                              cx={(sourceNode.position.x + targetNode.position.x) / 2 + 80}
-                              cy={(sourceNode.position.y + targetNode.position.y) / 2 + 40}
-                              r="10"
-                              fill="rgba(239, 68, 68, 0.9)"
-                              className="pointer-events-auto cursor-pointer opacity-0 hover:opacity-100 transition-opacity"
-                              onClick={() => {
-                                setSelectedWorkflow(prev => {
-                                  if (!prev) return prev;
-                                  return {
-                                    ...prev,
-                                    connections: prev.connections.filter(c => c.id !== connection.id),
-                                    updated_at: new Date(),
-                                  };
-                                });
-                              }}
-                            />
-                            <text
-                              x={(sourceNode.position.x + targetNode.position.x) / 2 + 80}
-                              y={(sourceNode.position.y + targetNode.position.y) / 2 + 45}
-                              textAnchor="middle"
-                              className="text-xs fill-white pointer-events-auto cursor-pointer opacity-0 hover:opacity-100 transition-opacity"
-                              onClick={() => {
-                                setSelectedWorkflow(prev => {
-                                  if (!prev) return prev;
-                                  return {
-                                    ...prev,
-                                    connections: prev.connections.filter(c => c.id !== connection.id),
-                                    updated_at: new Date(),
-                                  };
-                                });
-                              }}
-                            >
-                              ×
-                            </text>
-                          </g>
-                        );
-                      })}
-                      <defs>
-                        <marker id="arrowhead" markerWidth="12" markerHeight="8"
-                               refX="11" refY="4" orient="auto">
-                          <polygon points="0 0, 12 4, 0 8" fill="#6366f1" />
-                        </marker>
-                      </defs>
-                    </svg>
+                    {/* Connection Layer */}
+                    <ConnectionLayer
+                      connections={selectedWorkflow.connections}
+                      nodes={selectedWorkflow.nodes}
+                      dragConnection={dragConnection}
+                      onDeleteConnection={(connectionId) => {
+                        setSelectedWorkflow(prev => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            connections: prev.connections.filter(c => c.id !== connectionId),
+                            updated_at: new Date(),
+                          };
+                        });
+                      }}
+                      calculateConnectionPath={calculateConnectionPath}
+                    />
 
                     {/* Empty State */}
                     {selectedWorkflow.nodes.length === 0 && (
@@ -1200,6 +1178,89 @@ const Coordinator: React.FC = () => {
                 <div className="text-xs text-text-secondary mt-2">
                   Press Enter to send or click the Send button
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Keyboard Shortcuts Help */}
+        {showKeyboardShortcuts && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-surface rounded-2xl border border-border p-6 max-w-md w-full mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-text-primary">Keyboard Shortcuts</h3>
+                <button
+                  onClick={() => setShowKeyboardShortcuts(false)}
+                  className="text-text-secondary hover:text-text-primary"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <div className="pb-2 border-b border-border">
+                  <h4 className="font-semibold text-text-primary mb-2">Workflow Actions</h4>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Execute/Stop Workflow</span>
+                      <kbd className="px-2 py-1 bg-surface-light rounded text-xs">Space</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">New Workflow</span>
+                      <kbd className="px-2 py-1 bg-surface-light rounded text-xs">N</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Save Workflow</span>
+                      <kbd className="px-2 py-1 bg-surface-light rounded text-xs">S</kbd>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pb-2 border-b border-border">
+                  <h4 className="font-semibold text-text-primary mb-2">Connection Actions</h4>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Cancel Connection</span>
+                      <kbd className="px-2 py-1 bg-surface-light rounded text-xs">Esc</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Drag from Output Handle</span>
+                      <span className="text-text-secondary text-xs">Click & Drag</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pb-2 border-b border-border">
+                  <h4 className="font-semibold text-text-primary mb-2">Navigation</h4>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Close Modals</span>
+                      <kbd className="px-2 py-1 bg-surface-light rounded text-xs">Esc</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Show Help</span>
+                      <kbd className="px-2 py-1 bg-surface-light rounded text-xs">?</kbd>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold text-text-primary mb-2">Global</h4>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">New Workflow</span>
+                      <kbd className="px-2 py-1 bg-surface-light rounded text-xs">Ctrl+N</kbd>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-border">
+                <p className="text-xs text-text-secondary">
+                  Tip: Drag nodes from the palette, then drag from blue output handles to green input handles to create connections.
+                </p>
               </div>
             </div>
           </div>

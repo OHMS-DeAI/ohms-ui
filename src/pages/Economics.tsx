@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAgent } from '../context/AgentContext'
 import { econCanister, agent } from '../services/canisterService'
+import { logger } from '../utils/professionalLogger'
 
 import Card from '../components/Card'
 import Badge from '../components/Badge'
@@ -99,7 +100,7 @@ const Economics = () => {
 
         // Real subscription tiers loaded successfully - logging removed for security
       } catch (error) {
-        // Removed console log
+        logger.error('Failed to load subscription tiers', { error: error instanceof Error ? error.message : 'Unknown error' });
         setError('Failed to load subscription tiers')
       } finally {
         setLoading(false)
@@ -151,7 +152,7 @@ const Economics = () => {
           // Free Basic subscription created successfully - logging removed for security
         }
       } catch (error) {
-        // Removed console log
+        logger.error('Failed to load subscription status', { error: error instanceof Error ? error.message : 'Unknown error' });
         setError('Failed to load subscription status')
       } finally {
         setLoading(false)
@@ -182,7 +183,7 @@ const Economics = () => {
         setMonthlySpent(0)
       }
     } catch (err) {
-      // Removed console log
+      logger.error('Failed to convert ICP amount', { error: err instanceof Error ? err.message : 'Unknown error' });
     }
   }
 
@@ -234,7 +235,7 @@ const Economics = () => {
     setSubscribeMsg(null)
 
     try {
-      // Removed console log
+      logger.info('Starting subscription process', { tierName });
 
       // Create subscription using economics canister
       const updatedSubscription = await econCanister.create_subscription(tierName, true)
@@ -259,14 +260,13 @@ const Economics = () => {
         setSubscribeMsg(`Switched to ${tierName.charAt(0).toUpperCase() + tierName.slice(1)} Plan successfully!`)
       }
 
-      // Removed console log
-        tier: updatedSubscription.tier.name,
-        principal: principal,
-        expiresAt: new Date(Number(updatedSubscription.expires_at) / 1000000).toISOString()
-      })
+      // Subscription updated successfully
 
     } catch (error: any) {
-      // Removed console log
+      logger.error('Subscription creation failed', { 
+        tierName, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
       setSubscribeErr(error.message || 'Subscription change failed')
     } finally {
       setSubscribeLoading(false)
@@ -294,7 +294,9 @@ const Economics = () => {
             if (subscription) {
               setCurrentSubscription(subscription)
             }
-          }).catch(// Removed console log
+          }).catch(() => {
+            // Error fetching subscription status
+          })
         }
       }, 60000) // Update every minute
 
@@ -316,7 +318,7 @@ const Economics = () => {
         return result
       }
     } catch (error) {
-      // Removed console log
+      logger.error('Price calculation failed', { error: error instanceof Error ? error.message : 'Unknown error' });
       return null
     }
   }
