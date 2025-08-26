@@ -8,13 +8,9 @@ import Agents from './pages/Agents'
 import Verify from './pages/Verify'
 import Home from './pages/Home'
 import ModelCatalog from './pages/ModelCatalog'
-import AIWizard from './pages/AIWizard'
-import StarterPacks from './pages/StarterPacks'
 import Economics from './pages/Economics'
 import Admin from './pages/Admin'
 import AdminNovaq from './pages/AdminNovaq'
-import Subscription from './pages/Subscription'
-import AgentCreator from './pages/AgentCreator'
 import UserAgentCreator from './pages/UserAgentCreator'
 import PerformanceDashboard from './pages/PerformanceDashboard'
 import NOVAQDashboard from './pages/NOVAQDashboard'
@@ -54,16 +50,6 @@ function App() {
                   <Route path="/features" element={<Features />} />
                   
                   {/* User Routes - require authentication */}
-                  <Route path="/starter-packs" element={
-                    <ProtectedRoute>
-                      <StarterPacks />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/wizard" element={
-                    <ProtectedRoute>
-                      <AIWizard />
-                    </ProtectedRoute>
-                  } />
                   <Route path="/models" element={
                     <ProtectedRoute>
                       <ModelCatalog />
@@ -89,19 +75,9 @@ function App() {
                       <Economics />
                     </ProtectedRoute>
                   } />
-                  <Route path="/subscription" element={
-                    <ProtectedRoute>
-                      <Subscription />
-                    </ProtectedRoute>
-                  } />
                   <Route path="/create-agent" element={
                     <ProtectedRoute>
                       <UserAgentCreator />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/agent-creator" element={
-                    <ProtectedRoute>
-                      <AgentCreator />
                     </ProtectedRoute>
                   } />
                   <Route path="/verify" element={

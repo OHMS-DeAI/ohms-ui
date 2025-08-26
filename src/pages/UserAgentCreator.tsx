@@ -493,7 +493,9 @@ const UserAgentCreator = () => {
                     </div>
                     <div>
                       <h3 className="text-lg font-bold text-text-primary">Account Status</h3>
-                      <p className="text-sm text-text-secondary">{subscription.tier.toUpperCase()} Plan</p>
+                      <p className="text-sm text-text-secondary">
+                        {subscription?.tier ? subscription.tier.toUpperCase() : 'Loading...'} Plan
+                      </p>
                     </div>
                   </div>
 
@@ -505,7 +507,7 @@ const UserAgentCreator = () => {
                           <span className="text-xs text-text-secondary font-medium">Active Agents</span>
                         </div>
                         <div className="text-lg font-bold text-text-primary">
-                          {subscription.current_usage.active_agents} <span className="text-sm text-text-muted">/ {subscription.max_agents}</span>
+                          {subscription?.current_usage?.active_agents || 0} <span className="text-sm text-text-muted">/ {subscription?.max_agents || 0}</span>
                         </div>
                       </div>
 
@@ -515,7 +517,7 @@ const UserAgentCreator = () => {
                           <span className="text-xs text-text-secondary font-medium">This Month</span>
                         </div>
                         <div className="text-lg font-bold text-text-primary">
-                          {subscription.current_usage.creations_this_month} <span className="text-sm text-text-muted">/ {subscription.monthly_creations}</span>
+                          {subscription?.current_usage?.creations_this_month || 0} <span className="text-sm text-text-muted">/ {subscription?.monthly_creations || 0}</span>
                         </div>
                       </div>
                     </div>
@@ -524,17 +526,23 @@ const UserAgentCreator = () => {
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm text-text-secondary font-medium">Token Usage</span>
                         <span className="text-xs text-text-muted">
-                          {Math.round((subscription.current_usage.tokens_used / subscription.token_limit) * 100)}%
+                          {subscription?.current_usage?.tokens_used && subscription?.token_limit
+                            ? Math.round((subscription.current_usage.tokens_used / subscription.token_limit) * 100)
+                            : 0}%
                         </span>
                       </div>
                       <div className="w-full bg-primary/40 rounded-full h-2 mb-1">
                         <div
                           className="bg-gradient-to-r from-secondary to-accent h-2 rounded-full transition-all duration-500"
-                          style={{ width: `${Math.min((subscription.current_usage.tokens_used / subscription.token_limit) * 100, 100)}%` }}
+                          style={{
+                            width: subscription?.current_usage?.tokens_used && subscription?.token_limit
+                              ? `${Math.min((subscription.current_usage.tokens_used / subscription.token_limit) * 100, 100)}%`
+                              : '0%'
+                          }}
                         ></div>
                       </div>
                       <div className="text-xs text-text-muted">
-                        {subscription.current_usage.tokens_used.toLocaleString()} / {subscription.token_limit.toLocaleString()} tokens
+                        {(subscription?.current_usage?.tokens_used || 0).toLocaleString()} / {(subscription?.token_limit || 0).toLocaleString()} tokens
                       </div>
                     </div>
                   </div>

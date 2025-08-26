@@ -53,21 +53,8 @@ const Header = () => {
     { name: 'Home', href: '/', current: location.pathname === '/', external: false },
     { name: 'Chat with AI', href: '/chat', current: location.pathname === '/chat', external: false },
     { name: 'Coordinator', href: '/coordinator', current: location.pathname === '/coordinator', external: false },
-    {
-      name: 'Create Agents',
-      href: '/create-agent',
-      current: location.pathname === '/create-agent' || location.pathname === '/agent-creator' || location.pathname === '/wizard',
-      external: false,
-      hasMegaMenu: true,
-      megaMenuItems: [
-        { name: 'User Agent Creator', href: '/create-agent', description: 'Create custom AI agents from instructions' },
-        { name: 'Agent Creator', href: '/agent-creator', description: 'Advanced agent creation tools' },
-        { name: 'AI Wizard', href: '/wizard', description: 'Step-by-step agent creation wizard' }
-      ]
-    },
+    { name: 'Create Agents', href: '/create-agent', current: location.pathname === '/create-agent', external: false },
     { name: 'My Agents', href: '/agents', current: location.pathname === '/agents', external: false },
-    { name: 'Subscription', href: '/subscription', current: location.pathname === '/subscription', external: false },
-    { name: 'App', href: '/app', current: location.pathname === '/app', external: true },
   ]
 
   // Admin navigation - dynamically loaded based on user context
@@ -79,15 +66,8 @@ const Header = () => {
     { name: 'NOVAQ Dashboard', href: '/admin/novaq-dashboard', current: location.pathname === '/admin/novaq-dashboard', external: false },
   ] : []
 
-  // Legacy navigation for backward compatibility
-  const legacyNav: NavigationItem[] = [
-    { name: 'Starter Packs', href: '/starter-packs', current: location.pathname === '/starter-packs', external: false },
-    { name: 'AI Wizard', href: '/wizard', current: location.pathname === '/wizard', external: false },
-    { name: 'Agent Creator', href: '/agent-creator', current: location.pathname === '/agent-creator', external: false },
-  ]
-
   // Combine navigation based on user role (hide admin nav from non-admin users)
-  const navigation = [...userNav, ...(isAdmin ? adminNav : []), ...legacyNav]
+  const navigation = [...userNav, ...(isAdmin ? adminNav : [])]
 
   return (
     <header className="glass-morph sticky top-0 z-50 shadow-lg">

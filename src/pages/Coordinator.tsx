@@ -20,6 +20,7 @@ interface WorkflowConnection {
   targetId: string;
   sourceHandle?: string;
   targetHandle?: string;
+  path?: string; // SVG path for the connection line
 }
 
 interface Workflow {
@@ -41,6 +42,9 @@ const Coordinator: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [draggedNode, setDraggedNode] = useState<WorkflowNode | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [connectingFrom, setConnectingFrom] = useState<WorkflowNode | null>(null);
+  const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
+  const [showConfigPanel, setShowConfigPanel] = useState(false);
 
   // Available node types for the workflow
   const nodeTypes = [
@@ -74,13 +78,17 @@ const Coordinator: React.FC = () => {
     const nodeType = nodeTypes.find(nt => nt.type === type);
     if (!nodeType) return;
 
+    // Calculate optimal position to avoid overlap
+    const optimalPosition = calculateOptimalPosition(position);
+
     const newNode: WorkflowNode = {
       id: `node_${Date.now()}`,
       type: type as any,
-      position,
+      position: optimalPosition,
       data: {
         label: nodeType.label,
         description: `${nodeType.label} node`,
+        config: {}, // Initialize config as empty object
       },
     };
 
@@ -92,7 +100,7 @@ const Coordinator: React.FC = () => {
         updated_at: new Date(),
       };
     });
-  }, [selectedWorkflow, nodeTypes]);
+  }, [selectedWorkflow, nodeTypes, calculateOptimalPosition]);
 
   // Handle canvas drop
   const handleCanvasDrop = useCallback((e: React.DragEvent) => {
@@ -118,6 +126,131 @@ const Coordinator: React.FC = () => {
   const handleNodeDragStart = useCallback((node: WorkflowNode) => {
     setDraggedNode(node);
   }, []);
+
+  // Calculate connection path between two nodes
+  const calculateConnectionPath = useCallback((sourceNode: WorkflowNode, targetNode: WorkflowNode) => {
+    const sourceX = sourceNode.position.x + 80; // Node width / 2
+    const sourceY = sourceNode.position.y + 40; // Node height / 2
+    const targetX = targetNode.position.x + 80;
+    const targetY = targetNode.position.y + 40;
+
+    // Calculate control points for curved line
+    const dx = targetX - sourceX;
+    const dy = targetY - sourceY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Control point offset based on distance
+    const offset = Math.min(distance * 0.3, 100);
+
+    const cp1x = sourceX + offset;
+    const cp1y = sourceY;
+    const cp2x = targetX - offset;
+    const cp2y = targetY;
+
+    return `M ${sourceX} ${sourceY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${targetX} ${targetY}`;
+  }, []);
+
+  // Create connection between nodes
+  const createConnection = useCallback((sourceNode: WorkflowNode, targetNode: WorkflowNode) => {
+    if (!selectedWorkflow || sourceNode.id === targetNode.id) return;
+
+    const connectionId = `conn_${sourceNode.id}_${targetNode.id}`;
+    const path = calculateConnectionPath(sourceNode, targetNode);
+
+    const newConnection: WorkflowConnection = {
+      id: connectionId,
+      sourceId: sourceNode.id,
+      targetId: targetNode.id,
+      path,
+    };
+
+    setSelectedWorkflow(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        connections: [...prev.connections, newConnection],
+        updated_at: new Date(),
+      };
+    });
+
+    setIsConnecting(false);
+    setConnectingFrom(null);
+  }, [selectedWorkflow, calculateConnectionPath]);
+
+  // Handle node connection start
+  const handleNodeConnectionStart = useCallback((node: WorkflowNode) => {
+    setConnectingFrom(node);
+    setIsConnecting(true);
+  }, []);
+
+  // Handle node connection end
+  const handleNodeConnectionEnd = useCallback((node: WorkflowNode) => {
+    if (connectingFrom && connectingFrom.id !== node.id) {
+      createConnection(connectingFrom, node);
+    }
+    setConnectingFrom(null);
+    setIsConnecting(false);
+  }, [connectingFrom, createConnection]);
+
+  // Handle node click for configuration
+  const handleNodeClick = useCallback((node: WorkflowNode) => {
+    setSelectedNode(node);
+    setShowConfigPanel(true);
+  }, []);
+
+  // Update node configuration
+  const updateNodeConfig = useCallback((nodeId: string, config: Record<string, any>) => {
+    if (!selectedWorkflow) return;
+
+    setSelectedWorkflow(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        nodes: prev.nodes.map(node =>
+          node.id === nodeId ? { ...node, data: { ...node.data, config } } : node
+        ),
+        updated_at: new Date(),
+      };
+    });
+  }, [selectedWorkflow]);
+
+  // Calculate optimal position for new node to avoid overlap
+  const calculateOptimalPosition = useCallback((basePosition: { x: number; y: number }) => {
+    if (!selectedWorkflow) return basePosition;
+
+    const nodeWidth = 160; // Node width + padding
+    const nodeHeight = 96; // Node height + padding
+    let position = { ...basePosition };
+    let attempts = 0;
+    const maxAttempts = 50;
+
+    while (attempts < maxAttempts) {
+      let hasOverlap = false;
+
+      for (const node of selectedWorkflow.nodes) {
+        const dx = Math.abs(position.x - node.position.x);
+        const dy = Math.abs(position.y - node.position.y);
+
+        if (dx < nodeWidth && dy < nodeHeight) {
+          hasOverlap = true;
+          break;
+        }
+      }
+
+      if (!hasOverlap) {
+        return position;
+      }
+
+      // Try next position in a spiral pattern
+      const angle = attempts * 0.5;
+      const radius = 50 + attempts * 20;
+      position.x = basePosition.x + Math.cos(angle) * radius;
+      position.y = basePosition.y + Math.sin(angle) * radius;
+      attempts++;
+    }
+
+    return position;
+  }, [selectedWorkflow]);
 
   if (!isConnected) {
     return (
@@ -227,8 +360,8 @@ const Coordinator: React.FC = () => {
             </div>
           </div>
 
-          {/* Main Canvas */}
-          <div className="col-span-9">
+          {/* Main Canvas - Made Wider */}
+          <div className="col-span-10 lg:col-span-11">
             <div className="bg-surface rounded-2xl border border-border overflow-hidden">
               {/* Canvas Header */}
               <div className="border-b border-border p-4">
@@ -264,8 +397,8 @@ const Coordinator: React.FC = () => {
                 </div>
               </div>
 
-              {/* Canvas Area */}
-              <div className="relative h-96 overflow-hidden">
+              {/* Canvas Area - Made Taller and Wider */}
+              <div className="relative h-[600px] w-full overflow-auto">
                 {!selectedWorkflow ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
@@ -309,18 +442,50 @@ const Coordinator: React.FC = () => {
                       return (
                         <div
                           key={node.id}
-                          className={`absolute w-32 h-20 rounded-xl border border-border shadow-lg cursor-move bg-gradient-to-r ${nodeType?.color || 'from-gray-500 to-gray-600'} flex items-center justify-center text-white font-semibold text-sm`}
+                          className={`absolute w-40 h-24 rounded-xl border border-border shadow-lg cursor-pointer bg-gradient-to-r ${nodeType?.color || 'from-gray-500 to-gray-600'} flex flex-col items-center justify-center text-white font-semibold text-sm hover:shadow-xl transition-all duration-300`}
                           style={{
                             left: node.position.x,
                             top: node.position.y,
                             transform: 'translate(-50%, -50%)',
                           }}
+                          onClick={() => handleNodeClick(node)}
                           draggable
                           onDragStart={() => handleNodeDragStart(node)}
                         >
-                          <div className="text-center">
-                            <div className="text-lg mb-1">{nodeType?.icon}</div>
-                            <div className="text-xs">{node.data.label}</div>
+                          {/* Node Header */}
+                          <div className="flex items-center justify-between w-full px-3 py-1 border-b border-white/20">
+                            <span className="text-xs font-medium">{node.data.label}</span>
+                            <div className="text-sm">{nodeType?.icon}</div>
+                          </div>
+
+                          {/* Node Content */}
+                          <div className="flex-1 flex items-center justify-center px-3 py-2">
+                            <div className="text-center">
+                              <div className="text-xs opacity-90">
+                                {node.type === 'agent' && node.data.agentId ? 'Configured' :
+                                 node.data.description || 'Click to configure'}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Connection Points */}
+                          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                            <div
+                              className="w-3 h-3 bg-white rounded-full border-2 border-gray-600 cursor-pointer hover:bg-secondary transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleNodeConnectionStart(node);
+                              }}
+                            />
+                          </div>
+                          <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
+                            <div
+                              className="w-3 h-3 bg-white rounded-full border-2 border-gray-600 cursor-pointer hover:bg-secondary transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleNodeConnectionEnd(node);
+                              }}
+                            />
                           </div>
                         </div>
                       );
@@ -334,17 +499,40 @@ const Coordinator: React.FC = () => {
 
                         if (!sourceNode || !targetNode) return null;
 
+                        // Calculate curved path
+                        const path = calculateConnectionPath(sourceNode, targetNode);
+
                         return (
-                          <line
-                            key={connection.id}
-                            x1={sourceNode.position.x}
-                            y1={sourceNode.position.y}
-                            x2={targetNode.position.x}
-                            y2={targetNode.position.y}
-                            stroke="var(--color-secondary)"
-                            strokeWidth="2"
-                            markerEnd="url(#arrowhead)"
-                          />
+                          <g key={connection.id}>
+                            <path
+                              d={path}
+                              stroke="var(--color-secondary)"
+                              strokeWidth="2"
+                              fill="none"
+                              markerEnd="url(#arrowhead)"
+                              className="hover:stroke-blue-400 transition-colors"
+                            />
+                            {/* Connection label */}
+                            <text
+                              x={(sourceNode.position.x + targetNode.position.x) / 2}
+                              y={(sourceNode.position.y + targetNode.position.y) / 2 - 10}
+                              textAnchor="middle"
+                              className="text-xs fill-text-secondary pointer-events-auto cursor-pointer hover:fill-secondary"
+                              onClick={() => {
+                                // Remove connection
+                                setSelectedWorkflow(prev => {
+                                  if (!prev) return prev;
+                                  return {
+                                    ...prev,
+                                    connections: prev.connections.filter(c => c.id !== connection.id),
+                                    updated_at: new Date(),
+                                  };
+                                });
+                              }}
+                            >
+                              ×
+                            </text>
+                          </g>
                         );
                       })}
                       <defs>
@@ -395,6 +583,153 @@ const Coordinator: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Configuration Panel */}
+        {showConfigPanel && selectedNode && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-surface rounded-2xl border border-border p-6 max-w-md w-full mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-text-primary">
+                  Configure {selectedNode?.data?.label || 'Node'}
+                </h3>
+                <button
+                  onClick={() => setShowConfigPanel(false)}
+                  className="text-text-secondary hover:text-text-primary"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Node-specific configuration */}
+                {selectedNode?.type === 'agent' && (
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-2">
+                      Agent ID
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 bg-primary border border-border rounded-lg text-text-primary"
+                      placeholder="Enter agent ID"
+                      value={selectedNode?.data?.agentId || ''}
+                      onChange={(e) => {
+                        const newConfig = { ...(selectedNode?.data?.config || {}), agentId: e.target.value };
+                        updateNodeConfig(selectedNode?.id || '', newConfig);
+                      }}
+                    />
+                  </div>
+                )}
+
+                {selectedNode?.type === 'trigger' && (
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-2">
+                      Trigger Type
+                    </label>
+                    <select
+                      className="w-full px-3 py-2 bg-primary border border-border rounded-lg text-text-primary"
+                      value={selectedNode?.data?.config?.triggerType || 'manual'}
+                      onChange={(e) => {
+                        const newConfig = { ...(selectedNode?.data?.config || {}), triggerType: e.target.value };
+                        updateNodeConfig(selectedNode?.id || '', newConfig);
+                      }}
+                    >
+                      <option value="manual">Manual</option>
+                      <option value="timer">Timer</option>
+                      <option value="webhook">Webhook</option>
+                      <option value="event">Event</option>
+                    </select>
+                  </div>
+                )}
+
+                {selectedNode?.type === 'condition' && (
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-2">
+                      Condition Expression
+                    </label>
+                    <textarea
+                      className="w-full px-3 py-2 bg-primary border border-border rounded-lg text-text-primary"
+                      placeholder="Enter condition logic"
+                      rows={3}
+                      value={selectedNode?.data?.config?.condition || ''}
+                      onChange={(e) => {
+                        const newConfig = { ...(selectedNode?.data?.config || {}), condition: e.target.value };
+                        updateNodeConfig(selectedNode?.id || '', newConfig);
+                      }}
+                    />
+                  </div>
+                )}
+
+                {selectedNode?.type === 'action' && (
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-2">
+                      Action Type
+                    </label>
+                    <select
+                      className="w-full px-3 py-2 bg-primary border border-border rounded-lg text-text-primary"
+                      value={selectedNode?.data?.config?.actionType || 'http'}
+                      onChange={(e) => {
+                        const newConfig = { ...(selectedNode?.data?.config || {}), actionType: e.target.value };
+                        updateNodeConfig(selectedNode?.id || '', newConfig);
+                      }}
+                    >
+                      <option value="http">HTTP Request</option>
+                      <option value="email">Send Email</option>
+                      <option value="database">Database Query</option>
+                      <option value="notification">Send Notification</option>
+                    </select>
+                  </div>
+                )}
+
+                {/* Common configuration */}
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    className="w-full px-3 py-2 bg-primary border border-border rounded-lg text-text-primary"
+                    placeholder="Enter description"
+                    rows={2}
+                    value={selectedNode?.data?.description || ''}
+                    onChange={(e) => {
+                      setSelectedWorkflow(prev => {
+                        if (!prev) return prev;
+                        return {
+                          ...prev,
+                          nodes: prev.nodes.map(node =>
+                            node.id === selectedNode?.id
+                              ? { ...node, data: { ...node.data, description: e.target.value } }
+                              : node
+                          ),
+                          updated_at: new Date(),
+                        };
+                      });
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowConfigPanel(false)}
+                  className="flex-1 px-4 py-2 bg-secondary text-white rounded-lg hover:shadow-lg transition-all duration-300"
+                >
+                  Save Configuration
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedNode(null);
+                    setShowConfigPanel(false);
+                  }}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
