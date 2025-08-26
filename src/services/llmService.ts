@@ -179,15 +179,8 @@ export class LlmService {
         throw new Error('Agent canister not initialized');
       }
 
-      // Use real API client for canister calls
-      const { apiClient } = await import('./apiClient');
-
-      // Create conversation via real canister call
-      const response = await apiClient.sendLlmMessage('', model);
-
-      if (!response.success) {
-        throw new Error(response.error?.message || 'Failed to create conversation');
-      }
+      // For local development, just create the session without calling LLM yet
+      // The actual LLM call will happen when the user sends their first message
 
       // Create session with real data
       const sessionId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -237,14 +230,40 @@ export class LlmService {
         throw new Error('Agent canister not initialized');
       }
 
-      // Call canister method to send message
-      // const response = await this.agentCanister.sendMessage(
-      //   this.state.currentConversation.session_id,
-      //   message
-      // );
+      // Use the API client to send the message to the LLM service
+      const { getApiClient } = await import('./apiClient');
+      const apiClientInstance = getApiClient();
 
-      // For now, simulate a response based on the model
-      const response = await this.simulateLlmResponse(message);
+      // Send message to LLM (will use mock actor in local development)
+      const llmResponse = await apiClientInstance.sendLlmMessage(message, this.state.currentConversation.model);
+      
+      // Only use real API response - no simulations or fallbacks
+      if (!llmResponse.success) {
+        throw new Error(`LLM API call failed: ${llmResponse.error?.message || 'Unknown error'}`);
+      }
+
+      if (!llmResponse.data) {
+        throw new Error('LLM API returned no data');
+      }
+
+      // Parse InferenceResponse from ohms-agent
+      // Handle Candid variant response format: variant { Ok = record { ... } }
+      let inferenceResponse;
+      if (llmResponse.data && llmResponse.data.Ok) {
+        // Candid variant format
+        inferenceResponse = llmResponse.data.Ok;
+      } else if (llmResponse.data) {
+        // Direct record format (fallback)
+        inferenceResponse = llmResponse.data;
+      } else {
+        throw new Error('Invalid response format from OHMS Agent');
+      }
+
+      const response = inferenceResponse.generated_text || '';
+      if (!response) {
+        console.error('OHMS Agent response:', inferenceResponse);
+        throw new Error('OHMS Agent returned empty generated_text');
+      }
 
       // Update conversation with new messages
       const userMessage: ChatMessage = {
@@ -268,9 +287,9 @@ export class LlmService {
         conversation.messages.push(assistantMessage);
         conversation.last_activity = assistantMessage.timestamp;
 
-        // Update token usage (simplified)
-        const estimatedTokens = BigInt(message.length / 4);
-        const responseTokens = BigInt(response.length / 4);
+        // Update token usage - convert to integers first to avoid decimal BigInt conversion
+        const estimatedTokens = BigInt(Math.floor(message.length / 4));
+        const responseTokens = BigInt(Math.floor(response.length / 4));
         conversation.token_usage.input_tokens += estimatedTokens;
         conversation.token_usage.output_tokens += responseTokens;
         conversation.token_usage.total_tokens += estimatedTokens + responseTokens;
@@ -295,22 +314,6 @@ export class LlmService {
     }
   }
 
-  // Simulate AI response (will be replaced with actual API call)
-  private async simulateLlmResponse(message: string): Promise<string> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-
-    const model = this.state.currentConversation?.model;
-
-    // Llama 3.1 8B is currently the only supported model
-    switch (model) {
-      case QuantizedModel.Llama3_1_8B:
-        return `I've processed your message about "${message.substring(0, 50)}...". As Llama 3.1 8B, I can help with content generation, code assistance, general questions, and creative tasks. How can I assist you further?`;
-
-      default:
-        return `Thank you for your message about "${message.substring(0, 50)}...". I'm here to help with your request using Llama 3.1 8B.`;
-    }
-  }
 
   // Switch model in current conversation
   async switchModel(newModel: QuantizedModel): Promise<void> {
@@ -407,8 +410,18 @@ export class LlmService {
   }
 }
 
-// Singleton instance
-export const llmService = new LlmService();
+// Lazy singleton instance
+let _llmService: LlmService | null = null;
+
+export function getLlmService(): LlmService {
+  if (!_llmService) {
+    _llmService = new LlmService();
+  }
+  return _llmService;
+}
+
+// For backwards compatibility
+export const llmService = getLlmService();
 
 // React hook for using LLM service
 export function useLlmService() {

@@ -294,13 +294,27 @@ export class ApiClient {
       [this.endpoints.ohms_econ]: createEconActor,
     }
 
+    // Handle dfinity_llm canister - use ohms-agent for real LLM inference
+    if (canisterId === this.endpoints.dfinity_llm) {
+      // The ohms-agent canister provides real LLM inference via the 'infer' method
+      const agentActor = serviceMap[this.endpoints.ohms_agent]
+      if (!agentActor) {
+        throw new Error('OHMS agent canister service not available for LLM inference')
+      }
+
+      // Return the real agent actor which has authentication
+      return agentActor(this.agent, canisterId)
+    }
+
     const createActor = serviceMap[canisterId]
     if (!createActor) {
       throw new Error(`No service available for canister ${canisterId}`)
     }
 
-    return createActor(this.agent)
+    // Pass the canister ID and authenticated agent to the actor creator
+    return createActor(this.agent, canisterId)
   }
+
 
   // Enhanced Error Handling with Classification
   private handleRequestError(error: any, requestId: string, startTime: number, attempt: number = 1): ApiResponse {
@@ -522,17 +536,43 @@ export class ApiClient {
     return this.makeRequest(this.endpoints.ohms_agent, 'create_agent_from_instructions', params)
   }
 
-  // LLM Integration
+  // LLM Integration - Use ohms-agent canister for inference
   async sendLlmMessage(message: string, model: string = 'llama3.1-8b'): Promise<ApiResponse<any>> {
+    // Create InferenceRequest according to ohms-agent.did
+    const inferenceRequest = {
+      seed: BigInt(Math.floor(Math.random() * 1000000)),
+      prompt: message,
+      decode_params: {
+        max_tokens: [1024],
+        temperature: [0.7],
+        top_p: [0.9],
+        top_k: [],
+        repetition_penalty: [1.1]
+      },
+      msg_id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    }
+
+    // Use the ohms-agent canister which has the 'infer' method
     return this.makeRequest(
-      this.endpoints.dfinity_llm,
-      'generate_text',
-      [{ prompt: message, model, max_tokens: 1024 }]
+      this.endpoints.ohms_agent,
+      'infer',
+      [inferenceRequest]
     )
   }
 
   async getLlmModels(): Promise<ApiResponse<any[]>> {
-    return this.makeRequest(this.endpoints.dfinity_llm, 'list_models', [])
+    // Return supported models from ohms-agent
+    return Promise.resolve({
+      success: true,
+      data: [
+        { id: 'llama3.1-8b', name: 'Llama 3.1 8B', description: 'Fast and efficient general-purpose AI' }
+      ],
+      metadata: {
+        timestamp: Date.now(),
+        requestId: 'static-models',
+        duration: 0
+      }
+    })
   }
 
   // Coordinator Functions
@@ -789,14 +829,18 @@ export class EnhancedApiClient extends ApiClient {
     super(config)
     this.realTimeManager = new RealTimeManager()
 
-    // Add default interceptors
-    this.addRequestInterceptor(createAuthInterceptor(() => this.clientIdentity))
-    this.addResponseInterceptor(createLoggingInterceptor())
+    // Defer interceptor setup to avoid circular dependency
+    // They will be added during initialization
   }
 
   // Override initialize to store identity
   async initialize(agent: HttpAgent, identity?: Identity): Promise<void> {
     this.clientIdentity = identity || null
+    
+    // Add interceptors during initialization to avoid circular dependency
+    this.addRequestInterceptor(createAuthInterceptor(() => this.clientIdentity))
+    this.addResponseInterceptor(createLoggingInterceptor())
+    
     await super.initialize(agent, identity)
   }
 
@@ -870,8 +914,39 @@ export class EnhancedApiClient extends ApiClient {
   }
 }
 
-// Singleton instance with real-time capabilities
-export const apiClient = new EnhancedApiClient()
+// Lazy singleton instance with real-time capabilities
+let _apiClient: EnhancedApiClient | null = null
+
+export function getApiClient(): EnhancedApiClient {
+  if (!_apiClient) {
+    _apiClient = new EnhancedApiClient()
+  }
+  return _apiClient
+}
+
+// Simple getter for backwards compatibility - no immediate instantiation
+export const apiClient = {
+  get instance() {
+    return getApiClient()
+  }
+} as {
+  instance: EnhancedApiClient
+} & EnhancedApiClient
+
+// Add proxy methods to make it behave like the actual instance
+const proxyMethods = [
+  'initialize', 'listModels', 'getModel', 'createModel', 'listAgents', 
+  'getAgent', 'createAgentFromInstructions', 'sendLlmMessage', 'getLlmModels',
+  'getCoordinatorHealth', 'submitTask', 'getUserQuota', 'getSubscriptionStatus',
+  'createSubscription', 'healthCheck', 'subscribeToData', 'getCachedData',
+  'healthCheckWithRealtime', 'onHealthUpdate', 'destroy'
+] as const
+
+proxyMethods.forEach(method => {
+  (apiClient as any)[method] = (...args: any[]) => {
+    return (getApiClient() as any)[method](...args)
+  }
+})
 
 // React hook for using the API client
 export function useApiClient() {

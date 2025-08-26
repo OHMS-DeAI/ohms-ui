@@ -11,7 +11,7 @@ import {
 } from '../utils/walletErrorHandler'
 import { Principal } from '@dfinity/principal'
 import { internetIdentityService, type IIv2User, type GoogleAccountInfo } from '../services/internetIdentityService'
-import { llmService, type LlmState, type QuantizedModel, type ConversationSession } from '../services/llmService'
+import { getLlmService, type LlmState, type QuantizedModel, type ConversationSession, LlmError } from '../services/llmService'
 
 // Define types for our canisters
 export interface CanisterIds {
@@ -48,6 +48,7 @@ interface AgentContextType {
   checkAdminStatus: () => Promise<boolean>
   adminData: AdminData | null
   refreshAdminData: () => Promise<void>
+  initializeServices: () => Promise<void>
   clearConnectionError: () => void
   // LLM functionality
   llmState: LlmState
@@ -172,6 +173,9 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
   // Check admin status when principal changes
   useEffect(() => {
     if (principal) {
+      // Initialize services for all users
+      initializeServices()
+
       checkAdminStatus().then(isAdminUser => {
         if (isAdminUser) {
           console.log(`🔑 Admin access GRANTED for: ${principal} on ${CURRENT_NETWORK} network`)
@@ -312,7 +316,8 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
   // LLM methods
   const createLlmConversation = async (model: QuantizedModel): Promise<ConversationSession> => {
     try {
-      const conversation = await llmService.createConversation(model)
+      const llmServiceInstance = getLlmService()
+      const conversation = await llmServiceInstance.createConversation(model)
       setLlmState(prev => ({
         ...prev,
         conversations: new Map(prev.conversations).set(conversation.session_id, conversation),
@@ -329,10 +334,11 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     try {
       setLlmState(prev => ({ ...prev, isLoading: true, error: null }))
 
-      await llmService.sendMessage(message)
+      const llmServiceInstance = getLlmService()
+      await llmServiceInstance.sendMessage(message)
 
       // Update local state with new messages
-      const currentState = llmService.getState()
+      const currentState = llmServiceInstance.getState()
       setLlmState(prev => ({
         ...prev,
         conversations: currentState.conversations,
@@ -341,10 +347,11 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       }))
     } catch (error) {
       console.error('Failed to send LLM message:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       setLlmState(prev => ({
         ...prev,
         isLoading: false,
-        error: { error: 'InternalError', message: error.message }
+        error: { error: LlmError.InternalError, message: errorMessage }
       }))
       throw error
     }
@@ -353,7 +360,8 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
   const switchLlmModel = async (model: QuantizedModel): Promise<void> => {
     try {
       if (llmState.currentConversation) {
-        await llmService.switchModel(model)
+        const llmServiceInstance = getLlmService()
+        await llmServiceInstance.switchModel(model)
         setLlmState(prev => ({
           ...prev,
           currentConversation: prev.currentConversation ? {
@@ -370,7 +378,8 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
 
   const deleteLlmConversation = async (sessionId: string): Promise<void> => {
     try {
-      await llmService.deleteConversation(sessionId)
+      const llmServiceInstance = getLlmService()
+      await llmServiceInstance.deleteConversation(sessionId)
       setLlmState(prev => {
         const newConversations = new Map(prev.conversations)
         newConversations.delete(sessionId)
@@ -421,6 +430,40 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       console.error('❌ Failed to check admin status:', error)
       setIsAdmin(false)
       return false
+    }
+  }
+
+  const initializeServices = async () => {
+    try {
+      console.log('🔄 Initializing services with agent canister...')
+      
+      const authAgent = await createAuthAgent()
+      if (!authAgent) {
+        console.warn('⚠️ No authenticated agent available for service initialization')
+        return
+      }
+
+      // Import services dynamically to prevent circular dependencies
+      const [{ createAgentActor }, { getApiClient }] = await Promise.all([
+        import('../services/canisterService'),
+        import('../services/apiClient')
+      ])
+
+      const agentActor = createAgentActor(authAgent as any)
+
+      // Get current identity from II v2 service
+      const currentIdentity = internetIdentityService.getCurrentIdentity()
+
+      // Get the API client instance and initialize it
+      const apiClientInstance = getApiClient()
+      await apiClientInstance.initialize(authAgent, currentIdentity || undefined)
+
+      // Initialize LLM service with agent canister
+      const llmServiceInstance = getLlmService()
+      await llmServiceInstance.initialize(agentActor)
+      console.log('✅ Services initialized successfully')
+    } catch (error) {
+      console.error('❌ Failed to initialize services:', error)
     }
   }
 
@@ -493,6 +536,7 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         checkAdminStatus,
         adminData,
         refreshAdminData,
+        initializeServices,
         clearConnectionError,
         // LLM functionality
         llmState,

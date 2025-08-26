@@ -555,19 +555,22 @@ export const routeBestResult = async (req: {
 };
 
 // Helpers
-export const createAgentActor = (canisterId: string, agentOverride?: HttpAgent) => 
-  Actor.createActor(agentCanisterIdl, { agent: agentOverride || agent, canisterId });
-
-export const createCoordinatorActor = (agentOverride?: HttpAgent) =>
-  Actor.createActor(coordinatorCanisterIdl, {
+export const createAgentActor = (agentOverride?: HttpAgent, canisterId?: string) =>
+  Actor.createActor(agentCanisterIdl, {
     agent: agentOverride || agent,
-    canisterId: OHMS_COORDINATOR_CANISTER_ID,
+    canisterId: canisterId || OHMS_AGENT_CANISTER_ID
   });
 
-export const createModelActor = (agentOverride?: HttpAgent) =>
+export const createCoordinatorActor = (agentOverride?: HttpAgent, canisterId?: string) =>
+  Actor.createActor(coordinatorCanisterIdl, {
+    agent: agentOverride || agent,
+    canisterId: canisterId || OHMS_COORDINATOR_CANISTER_ID,
+  });
+
+export const createModelActor = (agentOverride?: HttpAgent, canisterId?: string) =>
   Actor.createActor(modelCanisterIdl, {
     agent: agentOverride || agent,
-    canisterId: OHMS_MODEL_CANISTER_ID,
+    canisterId: canisterId || OHMS_MODEL_CANISTER_ID,
   });
 
 export const listAgents = async (agentOverride?: HttpAgent): Promise<any[]> => {
@@ -659,8 +662,8 @@ export const listModels = async (state?: any, agentOverride?: HttpAgent): Promis
 };
 
 // Dynamic actor creators (useful to attach a specific agent/identity)
-export const createEconActor = (agentOverride?: HttpAgent) =>
+export const createEconActor = (agentOverride?: HttpAgent, canisterId?: string) =>
   Actor.createActor(econCanisterIdl, {
     agent: agentOverride ?? agent,
-    canisterId: OHMS_ECON_CANISTER_ID,
+    canisterId: canisterId || OHMS_ECON_CANISTER_ID,
   });
