@@ -107,12 +107,13 @@ const AgentCreator = () => {
 
       const econActor = createEconActor(agent as any)
       
-      // Check subscription and quota, create free tier if none exists
+      // Check subscription and quota, create Pro tier if none exists (free for all users)
       const [subscription, quotaValidation] = await Promise.all([
-        econActor.get_user_subscription([]).then(sub => {
+        econActor.get_user_subscription([]).then(async sub => {
           if (!sub) {
-            // Create free tier subscription for new user
-            return econActor.get_or_create_free_subscription()
+            // Create Pro tier subscription for new user (free)
+            const proSub = await econActor.create_subscription('pro', false)
+            return proSub.Ok || sub
           }
           return sub
         }),
@@ -200,7 +201,7 @@ const AgentCreator = () => {
       }
 
       setCreatedAgents(prev => [newAgent, ...prev])
-      setSuccess(`Successfully created agent: ${newAgent.agent_id}`)
+      setSuccess(`🎉 Successfully created agent: ${newAgent.agent_id}! Redirecting to your agent console...`)
 
       // Reset form
       setInstruction('')
@@ -210,6 +211,11 @@ const AgentCreator = () => {
 
       // Refresh quota
       await checkSubscriptionAndQuota()
+
+      // Redirect to Agents page with refresh parameter to show newly created agents
+      setTimeout(() => {
+        window.location.href = '/agents?refresh=true'
+      }, 3000)
 
     } catch (err) {
       // Removed console log
@@ -317,6 +323,11 @@ const AgentCreator = () => {
       if (result.Ok) {
         const agentIds = result.Ok
         addActivity('creation', `Successfully created ${agentIds.length} agents`)
+
+        // Wait a moment for the canister to process the new agents
+        await new Promise(resolve => setTimeout(resolve, 2000))
+
+        addActivity('success', `✅ ${agentIds.length} agents created successfully! Click 'View All Agents' to see them.`)
 
         // Test coordination if multiple agents
         if (agentIds.length > 1) {
@@ -618,7 +629,7 @@ const AgentCreator = () => {
                 <div className="flex items-center space-x-3">
                   <Badge variant="success">{agent.status}</Badge>
                   <Button
-                    onClick={() => window.location.href = `/agents`}
+                    onClick={() => window.location.href = `/agents?refresh=${Date.now()}`}
                     variant="outline"
                     size="sm"
                   >
@@ -677,7 +688,7 @@ const AgentCreator = () => {
               {creationProgress.stage === 'complete' && (
                 <div className="flex gap-3 pt-4">
                   <Button
-                    onClick={() => window.location.href = '/agents'}
+                    onClick={() => window.location.href = `/agents?refresh=${Date.now()}`}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
                     View All Agents

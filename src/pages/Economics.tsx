@@ -126,7 +126,7 @@ const Economics = () => {
         if (subscription) {
           setCurrentSubscription(subscription)
 
-          // If user has basic plan, calculate time remaining
+          // If user has basic plan, calculate time remaining (Pro is permanent)
           if (subscription.tier.name === "Basic") {
             const now = Date.now() * 1000000 // Convert to nanoseconds
             const expiresAt = Number(subscription.expires_at)
@@ -144,10 +144,12 @@ const Economics = () => {
 
           // User subscription loaded successfully - logging removed for security
         } else {
-          // No subscription found, create free Basic subscription automatically
-          // No subscription found, creating free Basic subscription
-          const newSubscription = await econCanister.get_or_create_free_subscription()
-          setCurrentSubscription(newSubscription)
+          // No subscription found, create free Pro subscription automatically
+          // No subscription found, creating free Pro subscription
+          const newSubscription = await econCanister.create_subscription('pro', false)
+          if (newSubscription.Ok) {
+            setCurrentSubscription(newSubscription.Ok)
+          }
 
           // Free Basic subscription created successfully - logging removed for security
         }
@@ -525,10 +527,10 @@ const Economics = () => {
                     </Badge>
                   </div>
                   <p className="text-textOnDark font-medium">
-                    {currentSubscription.tier.name === "Basic" ? "FREE" : `$${currentSubscription.tier.monthly_fee_usd}`}
+                    {currentSubscription.tier.name === "Basic" || currentSubscription.tier.name === "Pro" ? "FREE" : `$${currentSubscription.tier.monthly_fee_usd}`}
                   </p>
                   <p className="text-textOnDark/60 text-xs">
-                    {currentSubscription.tier.name === "Basic" ? "1 month free!" : "Monthly fee"}
+                    {currentSubscription.tier.name === "Basic" || currentSubscription.tier.name === "Pro" ? "Always free!" : "Monthly fee"}
                   </p>
                 </div>
               </div>
@@ -692,12 +694,12 @@ const Economics = () => {
                     {tierName !== currentSubscription?.tier.name && (
                       <Button
                         size="sm"
-                        variant={tierName === "basic" ? "primary" : "outline"}
+                        variant={(tierName === "basic" || tierName === "pro") ? "primary" : "outline"}
                         className="mt-3"
                         onClick={() => handleSubscribe(tierName)}
                         loading={subscribeLoading}
                       >
-                        {tierName === "basic" ? "Get FREE Basic Plan" : `Select ${formatTierName(tierName)}`}
+                        {(tierName === "basic" || tierName === "pro") ? `Get FREE ${formatTierName(tierName)} Plan` : `Select ${formatTierName(tierName)}`}
                       </Button>
                     )}
                     {tierName === currentSubscription?.tier.name && (
@@ -972,12 +974,12 @@ const Economics = () => {
                   ) : (
                     <Button
                       size="lg"
-                      variant={tierName === "basic" ? "primary" : "outline"}
+                      variant={(tierName === "basic" || tierName === "pro") ? "primary" : "outline"}
                       onClick={() => handleSubscribe(tierName)}
                       loading={subscribeLoading}
-                      className={tierName === "basic" ? "bg-gradient-to-r from-accentGold to-accentGold/80 text-primary" : ""}
+                      className={(tierName === "basic" || tierName === "pro") ? "bg-gradient-to-r from-accentGold to-accentGold/80 text-primary" : ""}
                     >
-                      {tierName === "basic" ? "🚀 Get FREE Basic Plan" : `Select ${formatTierName(tierName)}`}
+                      {(tierName === "basic" || tierName === "pro") ? `🚀 Get FREE ${formatTierName(tierName)} Plan` : `Select ${formatTierName(tierName)}`}
                     </Button>
                   )}
 

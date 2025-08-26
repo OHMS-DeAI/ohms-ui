@@ -8,7 +8,8 @@ import Input from '../components/Input'
 
 import LoadingSpinner from '../components/LoadingSpinner'
 import { AgentAdminMetrics, SystemHealthBanner } from '../components/AdminMetrics'
-import { setSwarmPolicy, getSwarmPolicy, routeBestResult, listAgents } from '../services/canisterService'
+import { setSwarmPolicy, getSwarmPolicy, routeBestResult, listUserAgents } from '../services/canisterService'
+import { createDirectLlmService } from '../services/directLlmService'
 
 interface Agent {
   agent_id: string
@@ -48,6 +49,7 @@ const Agents = () => {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showConfigModal, setShowConfigModal] = useState(false)
   const [showChatModal, setShowChatModal] = useState(false)
@@ -90,17 +92,25 @@ const Agents = () => {
   }, [])
 
   const fetchAgents = async () => {
-    if (!isConnected) return
-    
+    if (!isConnected) {
+      console.log('Agents: Not connected, skipping fetch')
+      return
+    }
+
     setLoading(true)
     setError(null)
     try {
+      console.log('Agents: Starting to fetch agents...')
       const plugAgent = await createAuthAgent()
       if (!plugAgent) {
         throw new Error('Failed to create authenticated agent')
       }
-      const res = await listAgents(plugAgent)
-      setAgents((res as any[]).map((a: any) => ({
+
+      console.log('Agents: Calling listUserAgents...')
+      const res = await listUserAgents(plugAgent)
+      console.log('Agents: Raw response from listUserAgents:', res)
+
+      const mappedAgents = (res as any[]).map((a: any) => ({
         agent_id: a.agent_id,
         agent_principal: a.agent_principal,
         capabilities: a.capabilities,
@@ -109,9 +119,18 @@ const Agents = () => {
         health_score: Number(a.health_score ?? 0),
         model_id: a.model_id,
         status: 'online',
-      })))
+      }))
+
+      console.log('Agents: Mapped agents:', mappedAgents)
+      setAgents(mappedAgents)
+
+      if (mappedAgents.length === 0) {
+        setSuccess('No agents found. Try creating some agents first!')
+      } else {
+        setSuccess(`Found ${mappedAgents.length} agent${mappedAgents.length !== 1 ? 's' : ''}`)
+      }
     } catch (err: any) {
-      // Removed console log
+      console.error('Agents: Error fetching agents:', err)
       setError(err.message || 'Failed to fetch agents')
       setAgents([])
     } finally {
@@ -119,11 +138,29 @@ const Agents = () => {
     }
   }
   
-  // Auto-load agents when connected
+  // Auto-load agents when connected and handle refresh parameter
   useEffect(() => {
-    if (isConnected) {
-      fetchAgents()
+    const loadAgents = async () => {
+      const urlParams = new URLSearchParams(window.location.search)
+      const refreshParam = urlParams.get('refresh')
+
+      if (refreshParam) {
+        // Handle refresh parameter - delay to ensure agents are fully registered
+        setSuccess('🔄 Loading your newly created agents...')
+        setTimeout(async () => {
+          await fetchAgents()
+          setSuccess('✅ Welcome back! Your agents are ready to use.')
+          setTimeout(() => setSuccess(null), 3000)
+          // Clean up URL after refresh
+          window.history.replaceState({}, '', window.location.pathname)
+        }, 1000)
+      } else if (isConnected) {
+        // Normal load when connected
+        await fetchAgents()
+      }
     }
+
+    loadAgents()
   }, [isConnected])
 
   // Remove fetchModels - not needed in this component
@@ -156,9 +193,9 @@ const Agents = () => {
 
   const handleSendMessage = async () => {
     if (!currentMessage.trim() || !selectedAgent) return
-    
+
     setIsSending(true)
-    
+
     // Add user message
     const userMessage: ChatMessage = {
       id: `msg_${Date.now()}`,
@@ -166,15 +203,38 @@ const Agents = () => {
       content: currentMessage,
       timestamp: Date.now()
     }
-    
+
     setChatMessages(prev => [...prev, userMessage])
+    const messageToSend = currentMessage
     setCurrentMessage('')
-    
+
     try {
-      // Real inference will go via agent canister once bound.
-      setError('Inference route not wired yet. Bind agent and use coordinator route in next step.')
-    } catch (err) {
-      // Removed console log
+      // Use Direct LLM Service to make agents actually work
+      const llmService = createDirectLlmService()
+      const response = await llmService.chatWithAgent(selectedAgent.agent_id, messageToSend)
+
+      // Add assistant response
+      const assistantMessage: ChatMessage = {
+        id: `msg_${Date.now() + 1}`,
+        role: 'assistant',
+        content: response.content,
+        timestamp: Date.now()
+      }
+
+      setChatMessages(prev => [...prev, assistantMessage])
+
+      // Clear any previous error
+      setError(null)
+    } catch (err: any) {
+      // Add error message to chat
+      const errorMessage: ChatMessage = {
+        id: `msg_${Date.now() + 1}`,
+        role: 'assistant',
+        content: `I apologize, but I'm currently unable to respond due to a technical issue: ${err.message}`,
+        timestamp: Date.now()
+      }
+      setChatMessages(prev => [...prev, errorMessage])
+      setError(`Failed to get response: ${err.message}`)
     } finally {
       setIsSending(false)
     }
@@ -208,7 +268,7 @@ const Agents = () => {
         </div>
         <div className="flex gap-3">
           <Button variant="outline" onClick={fetchAgents} loading={loading}>
-            Refresh
+            🔄 Refresh Agents
           </Button>
           <Button onClick={() => setShowCreateForm(true)}>
             Create Agent
@@ -225,22 +285,68 @@ const Agents = () => {
             <h4 className="font-medium text-white mb-1">Llama 3.1 8B</h4>
             <p className="text-sm text-gray-400 mb-2">High-performance general-purpose AI model</p>
             <div className="flex flex-wrap gap-1">
-              <Badge variant="secondary" className="text-xs">Content Generation</Badge>
-              <Badge variant="secondary" className="text-xs">Code Assistance</Badge>
-              <Badge variant="secondary" className="text-xs">Analysis</Badge>
+              <Badge variant="default" className="text-xs">Content Generation</Badge>
+              <Badge variant="default" className="text-xs">Code Assistance</Badge>
+              <Badge variant="default" className="text-xs">Analysis</Badge>
             </div>
           </div>
         </div>
         <p className="text-xs text-gray-500 mt-3">
-          All agents use the Llama 3.1 8B model via DFINITY LLM integration for real AI responses.
+          All agents use the Llama 3.1 8B model for now
         </p>
       </Card>
+
+      {success && (
+        <Card className="mb-6 border-green-500/50">
+          <p className="text-green-300">{success}</p>
+        </Card>
+      )}
 
       {error && (
         <Card className="mb-6 border-red-500/50">
           <p className="text-red-300">Error: {error}</p>
         </Card>
       )}
+
+      {/* Debug Information */}
+      <Card className="mb-6 border-accentGold/20 bg-primary/30">
+        <h3 className="text-sm font-semibold mb-3 text-accentGold">🔧 Debug Info</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div>
+            <span className="text-textOnDark/60">Connection Status:</span>
+            <p className={`font-medium ${isConnected ? 'text-green-400' : 'text-red-400'}`}>
+              {isConnected ? '✅ Connected' : '❌ Disconnected'}
+            </p>
+          </div>
+          <div>
+            <span className="text-textOnDark/60">Agents Loaded:</span>
+            <p className="font-medium text-accentGold">{agents.length}</p>
+          </div>
+          <div>
+            <span className="text-textOnDark/60">Loading State:</span>
+            <p className={`font-medium ${loading ? 'text-yellow-400' : 'text-green-400'}`}>
+              {loading ? '⏳ Loading...' : '✅ Ready'}
+            </p>
+          </div>
+        </div>
+        {agents.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-accentGold/20">
+            <p className="text-xs text-textOnDark/60 mb-2">Agent IDs:</p>
+            <div className="flex flex-wrap gap-2">
+              {agents.slice(0, 3).map((agent, idx) => (
+                <Badge key={idx} variant="default" size="sm" className="text-xs">
+                  {agent.agent_id.split('_')[0]}...
+                </Badge>
+              ))}
+              {agents.length > 3 && (
+                <Badge variant="default" size="sm" className="text-xs">
+                  +{agents.length - 3} more
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* Swarm Policy Panel */}
       <div className="rounded-lg border border-accentGold/30 p-4 mb-6">

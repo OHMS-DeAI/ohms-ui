@@ -46,6 +46,7 @@ const UserAgentCreator = () => {
   const { isWalletAvailable, createAuthAgent, principal } = useAgent()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   // Agent creation state
   const [creationRequest, setCreationRequest] = useState<AgentCreationRequest>({
@@ -77,13 +78,30 @@ const UserAgentCreator = () => {
       
       // Load user subscription and usage
       const [sub, agents, quota] = await Promise.all([
-        econActor.get_user_subscription([]),
-        listUserAgents(agent as any),
-        getUserQuotaStatus(),
+        econActor.get_user_subscription([]).catch(() => null),
+        listUserAgents(agent as any).catch(() => []),
+        getUserQuotaStatus().catch(() => null),
       ])
 
-      setSubscription(sub as UserSubscription)
-      setCreatedAgents(agents as AgentCreationResult[])
+      // Safely handle subscription data
+      if (sub && sub.Ok) {
+        setSubscription(sub.Ok as UserSubscription)
+      } else {
+        // Create a default Pro subscription for all users (no payment required)
+        setSubscription({
+          tier: 'pro' as any,
+          max_agents: 10,
+          monthly_creations: 100,
+          token_limit: BigInt(1000000), // 1M tokens for Pro
+          current_usage: {
+            active_agents: 0,
+            creations_this_month: 0,
+            tokens_used_this_month: BigInt(0)
+          }
+        } as UserSubscription)
+      }
+
+      setCreatedAgents((agents as AgentCreationResult[]) || [])
 
       // Load real available models from canister
       try {
@@ -151,7 +169,7 @@ const UserAgentCreator = () => {
       
       // Add to created agents list
       setCreatedAgents(prev => [result as AgentCreationResult, ...prev])
-      
+
       // Reset form
       setCreationRequest({
         instruction: '',
@@ -162,6 +180,12 @@ const UserAgentCreator = () => {
 
       // Reload user data to update usage
       await loadUserData()
+
+      // Show success message and redirect to Agents page
+      setSuccess(`🎉 Agent created successfully! Redirecting to your agent console...`)
+      setTimeout(() => {
+        window.location.href = '/agents?refresh=true'
+      }, 2000)
 
     } catch (e: any) {
       setError(e?.message || 'Failed to create agent')
@@ -261,6 +285,21 @@ const UserAgentCreator = () => {
           </div>
         </div>
       </div>
+
+      {/* Success Display */}
+      {success && (
+        <div className="max-w-7xl mx-auto px-4 mb-8">
+          <div className="bg-accent-success/10 border border-accent-success/20 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <svg className="w-5 h-5 text-accent-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-accent-success font-medium">Success</span>
+            </div>
+            <p className="text-accent-success mt-2 ml-8">{success}</p>
+          </div>
+        </div>
+      )}
 
       {/* Error Display */}
       {error && (
@@ -507,7 +546,7 @@ const UserAgentCreator = () => {
                           <span className="text-xs text-text-secondary font-medium">Active Agents</span>
                         </div>
                         <div className="text-lg font-bold text-text-primary">
-                          {subscription?.current_usage?.active_agents || 0} <span className="text-sm text-text-muted">/ {subscription?.max_agents || 0}</span>
+                          {subscription?.current_usage?.active_agents ?? 0} <span className="text-sm text-text-muted">/ {subscription?.max_agents ?? 0}</span>
                         </div>
                       </div>
 
@@ -517,7 +556,7 @@ const UserAgentCreator = () => {
                           <span className="text-xs text-text-secondary font-medium">This Month</span>
                         </div>
                         <div className="text-lg font-bold text-text-primary">
-                          {subscription?.current_usage?.creations_this_month || 0} <span className="text-sm text-text-muted">/ {subscription?.monthly_creations || 0}</span>
+                          {subscription?.current_usage?.creations_this_month ?? 0} <span className="text-sm text-text-muted">/ {subscription?.monthly_creations ?? 0}</span>
                         </div>
                       </div>
                     </div>
@@ -526,8 +565,8 @@ const UserAgentCreator = () => {
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm text-text-secondary font-medium">Token Usage</span>
                         <span className="text-xs text-text-muted">
-                          {subscription?.current_usage?.tokens_used && subscription?.token_limit
-                            ? Math.round((subscription.current_usage.tokens_used / subscription.token_limit) * 100)
+                          {subscription?.current_usage?.tokens_used && subscription?.token_limit && subscription.token_limit > 0n
+                            ? Math.round(Number(subscription.current_usage.tokens_used * 100n / subscription.token_limit))
                             : 0}%
                         </span>
                       </div>
@@ -535,14 +574,14 @@ const UserAgentCreator = () => {
                         <div
                           className="bg-gradient-to-r from-secondary to-accent h-2 rounded-full transition-all duration-500"
                           style={{
-                            width: subscription?.current_usage?.tokens_used && subscription?.token_limit
-                              ? `${Math.min((subscription.current_usage.tokens_used / subscription.token_limit) * 100, 100)}%`
+                            width: subscription?.current_usage?.tokens_used && subscription?.token_limit && subscription.token_limit > 0n
+                              ? `${Math.min(Number(subscription.current_usage.tokens_used * 100n / subscription.token_limit), 100)}%`
                               : '0%'
                           }}
                         ></div>
                       </div>
                       <div className="text-xs text-text-muted">
-                        {(subscription?.current_usage?.tokens_used || 0).toLocaleString()} / {(subscription?.token_limit || 0).toLocaleString()} tokens
+                        {subscription?.current_usage?.tokens_used ? subscription.current_usage.tokens_used.toLocaleString() : '0'} / {subscription?.token_limit ? subscription.token_limit.toLocaleString() : '0'} tokens
                       </div>
                     </div>
                   </div>
