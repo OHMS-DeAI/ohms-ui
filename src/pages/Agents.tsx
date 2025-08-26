@@ -129,9 +129,8 @@ const Agents = () => {
   // Remove fetchModels - not needed in this component
 
   const handleCreateAgent = async () => {
-    // No client-side mock creation. Surface message for now.
-    setError('Agent creation is managed by the coordinator/ops flow.')
-    setShowCreateForm(false)
+    // Redirect to the proper Agent Creation Studio
+    window.location.href = '/create-agent'
   }
 
   const handleSaveSwarmPolicy = async () => {
@@ -217,6 +216,25 @@ const Agents = () => {
         </div>
       </div>
 
+
+      {/* Model Information */}
+      <Card className="mb-6 border-accentGold/30">
+        <h3 className="text-lg font-semibold mb-3 text-accentGold">Available Models</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-3 bg-gray-800/50 rounded-lg">
+            <h4 className="font-medium text-white mb-1">Llama 3.1 8B</h4>
+            <p className="text-sm text-gray-400 mb-2">High-performance general-purpose AI model</p>
+            <div className="flex flex-wrap gap-1">
+              <Badge variant="secondary" className="text-xs">Content Generation</Badge>
+              <Badge variant="secondary" className="text-xs">Code Assistance</Badge>
+              <Badge variant="secondary" className="text-xs">Analysis</Badge>
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 mt-3">
+          All agents use the Llama 3.1 8B model via DFINITY LLM integration for real AI responses.
+        </p>
+      </Card>
 
       {error && (
         <Card className="mb-6 border-red-500/50">

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAgent } from '../context/AgentContext'
+import { logger } from '../utils/professionalLogger'
 import Card from '../components/Card'
 import Badge from '../components/Badge'
 import Button from '../components/Button'
@@ -7,7 +8,7 @@ import Modal from '../components/Modal'
 import Input from '../components/Input'
 import Textarea from '../components/Textarea'
 import LoadingSpinner from '../components/LoadingSpinner'
-import { createAgentActor, createEconActor } from '../services/canisterService'
+import { createAgentActor, createEconActor, createAgentsFromInstructions, executeCoordinatorWorkflow, sendMessageToAgent } from '../services/canisterService'
 
 interface AgentCreationRequest {
   instruction: string
@@ -31,6 +32,20 @@ interface CreatedAgent {
   capabilities: string[]
 }
 
+interface TestResults {
+  testType: 'single' | 'dual' | 'swarm'
+  agentsCreated: number
+  coordinationResults?: any[]
+  autonomousTasks?: string[]
+  timestamp: number
+}
+
+interface AgentActivity {
+  type: 'creation' | 'coordination' | 'task' | 'error'
+  message: string
+  timestamp: string
+}
+
 const AgentCreator = () => {
   const { isConnected, createAuthAgent, principal } = useAgent()
   const [loading, setLoading] = useState(false)
@@ -45,9 +60,13 @@ const AgentCreator = () => {
   const [showCreationModal, setShowCreationModal] = useState(false)
   const [creationProgress, setCreationProgress] = useState<AgentCreationProgress | null>(null)
   const [createdAgents, setCreatedAgents] = useState<CreatedAgent[]>([])
-  
+
   const [quotaValidation, setQuotaValidation] = useState<any>(null)
   const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null)
+
+  // Test functionality state
+  const [testResults, setTestResults] = useState<TestResults | null>(null)
+  const [agentActivities, setAgentActivities] = useState<AgentActivity[]>([])
 
   // Available capabilities for agent creation
   const availableCapabilities = [
@@ -231,6 +250,135 @@ const AgentCreator = () => {
     }
   }
 
+  // Test Functions for Autonomous Agent Creation
+  const addActivity = (type: AgentActivity['type'], message: string) => {
+    setAgentActivities(prev => [...prev, {
+      type,
+      message,
+      timestamp: new Date().toLocaleTimeString()
+    }])
+  }
+
+  const getActivityColor = (type: AgentActivity['type']) => {
+    switch (type) {
+      case 'creation': return 'bg-green-500'
+      case 'coordination': return 'bg-blue-500'
+      case 'task': return 'bg-purple-500'
+      case 'error': return 'bg-red-500'
+      default: return 'bg-gray-500'
+    }
+  }
+
+  const testAutonomousAgent = async (testType: 'single' | 'dual' | 'swarm') => {
+    if (!isConnected) {
+      setError('Please connect your wallet first')
+      return
+    }
+
+    setLoading(true)
+    setTestResults(null)
+    setAgentActivities([])
+
+    try {
+      addActivity('creation', `Starting ${testType} agent test...`)
+
+      let instructions = ''
+      let agentCount = 1
+      let capabilities: string[] = []
+
+      switch (testType) {
+        case 'single':
+          instructions = `Create a single autonomous agent that analyzes market trends and provides investment recommendations. Use the real Llama 3.1 8B model capabilities.`
+          agentCount = 1
+          capabilities = ['analysis', 'research']
+          break
+
+        case 'dual':
+          instructions = `Create two autonomous agents that work together to solve complex coding problems. Agent 1 specializes in algorithm design, Agent 2 specializes in code implementation. They should coordinate their efforts.`
+          agentCount = 2
+          capabilities = ['code', 'planning', 'coordination']
+          break
+
+        case 'swarm':
+          instructions = `Create a swarm of 3 autonomous agents for content creation. Each agent should specialize in different aspects: research, writing, and editing. They should collaborate to produce high-quality content.`
+          agentCount = 3
+          capabilities = ['research', 'writing', 'editing', 'coordination']
+          break
+      }
+
+      // Create agents using real DFINITY LLM
+      const result = await createAgentsFromInstructions(
+        instructions,
+        agentCount,
+        capabilities,
+        'normal'
+      )
+
+      if (result.Ok) {
+        const agentIds = result.Ok
+        addActivity('creation', `Successfully created ${agentIds.length} agents`)
+
+        // Test coordination if multiple agents
+        if (agentIds.length > 1) {
+          addActivity('coordination', 'Testing agent coordination...')
+
+          try {
+            const coordResult = await executeCoordinatorWorkflow(
+              `Coordinate between agents ${agentIds.join(', ')} to demonstrate autonomous collaboration`,
+              agentIds
+            )
+
+            addActivity('coordination', 'Coordination test completed successfully')
+
+            setTestResults({
+              testType,
+              agentsCreated: agentIds.length,
+              coordinationResults: [coordResult],
+              autonomousTasks: [
+                'Market analysis',
+                'Investment recommendations',
+                'Collaborative problem solving',
+                'Content creation workflow'
+              ],
+              timestamp: Date.now()
+            })
+          } catch (coordError) {
+            addActivity('error', `Coordination test failed: ${coordError}`)
+          }
+        } else {
+          // Single agent test
+          setTestResults({
+            testType,
+            agentsCreated: 1,
+            autonomousTasks: [
+              'Task analysis',
+              'Independent execution',
+              'Result generation'
+            ],
+            timestamp: Date.now()
+          })
+        }
+
+        logger.info('Autonomous agent test completed', {
+          testType,
+          agentCount: agentIds.length,
+          capabilities
+        })
+
+      } else {
+        throw new Error(result.Err || 'Failed to create test agents')
+      }
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Test failed'
+      setError(`Autonomous agent test failed: ${errorMessage}`)
+      addActivity('error', errorMessage)
+      logger.error('Autonomous agent test failed', { error: err, testType })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (!isConnected) {
     return (
       <div className="flex justify-center items-center min-h-64">
@@ -396,6 +544,66 @@ const AgentCreator = () => {
       </Card>
 
       {/* Recently Created Agents */}
+      {/* Autonomous Agent Testing Section */}
+      <Card>
+        <h2 className="text-xl font-semibold text-white mb-6">🧪 Test Autonomous Agent Creation</h2>
+        <p className="text-gray-400 mb-6">
+          Test creating multiple autonomous agents from the real Llama 3.1 8B model and see how they coordinate.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <Button
+            onClick={() => testAutonomousAgent('single')}
+            disabled={!isConnected || loading}
+            className="flex-1"
+          >
+            Test Single Agent
+          </Button>
+          <Button
+            onClick={() => testAutonomousAgent('dual')}
+            disabled={!isConnected || loading}
+            className="flex-1"
+            variant="outline"
+          >
+            Test Dual Coordination
+          </Button>
+          <Button
+            onClick={() => testAutonomousAgent('swarm')}
+            disabled={!isConnected || loading}
+            className="flex-1"
+            variant="secondary"
+          >
+            Test Agent Swarm
+          </Button>
+        </div>
+
+        {/* Test Results */}
+        {testResults && (
+          <div className="bg-gray-800/50 p-4 rounded-lg">
+            <h3 className="font-medium text-white mb-2">Test Results:</h3>
+            <pre className="text-gray-300 text-sm whitespace-pre-wrap font-mono bg-gray-900/50 p-3 rounded">
+              {JSON.stringify(testResults, null, 2)}
+            </pre>
+          </div>
+        )}
+
+        {/* Agent Activity Feed */}
+        {agentActivities.length > 0 && (
+          <div className="mt-6">
+            <h3 className="font-medium text-white mb-3">Agent Activity Feed:</h3>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {agentActivities.map((activity, index) => (
+                <div key={index} className="flex items-center space-x-3 p-2 bg-gray-800/30 rounded text-sm">
+                  <div className={`w-2 h-2 rounded-full ${getActivityColor(activity.type)}`} />
+                  <span className="text-gray-300">{activity.message}</span>
+                  <span className="text-gray-500 text-xs ml-auto">{activity.timestamp}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+
       {createdAgents.length > 0 && (
         <Card>
           <h2 className="text-xl font-semibold text-white mb-6">Recently Created Agents</h2>

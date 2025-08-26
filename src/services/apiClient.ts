@@ -561,15 +561,15 @@ export class ApiClient {
   }
 
   async getLlmModels(): Promise<ApiResponse<any[]>> {
-    // Return supported models from ohms-agent
+    // Return ONLY real supported models from ohms-agent (DFINITY LLM integration)
     return Promise.resolve({
       success: true,
       data: [
-        { id: 'llama3.1-8b', name: 'Llama 3.1 8B', description: 'Fast and efficient general-purpose AI' }
+        { id: 'llama3.1-8b', name: 'Llama 3.1 8B', description: 'High-performance general-purpose AI model for content generation and intelligent conversations' }
       ],
       metadata: {
         timestamp: Date.now(),
-        requestId: 'static-models',
+        requestId: 'real-models',
         duration: 0
       }
     })

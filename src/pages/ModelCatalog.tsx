@@ -129,23 +129,18 @@ const ModelCatalog = () => {
     return 'default'
   }
 
-  // Helper functions for enrichment
+  // Helper functions for enrichment - ONLY use real DFINITY LLM models
   const getModelFamily = (modelId: string) => {
     if (modelId.includes('llama')) return 'Llama'
-    if (modelId.includes('phi')) return 'Phi'
-    if (modelId.includes('mistral')) return 'Mistral'
-    if (modelId.includes('gemma')) return 'Gemma'
-    return 'Unknown'
+    return 'AI Model' // Generic for unknown models
   }
 
   const getModelDescription = (modelId: string) => {
-    const descriptions: Record<string, string> = {
-      'llama': 'Meta\'s large language model series with strong instruction following capabilities',
-      'phi': 'Microsoft\'s efficient small language model optimized for reasoning',
-      'mistral': 'Mistral AI\'s open-source model with excellent performance',
-      'gemma': 'Google\'s lightweight, state-of-the-art open model'
+    // Only show real descriptions for actual supported models
+    if (modelId.includes('llama3.1-8b') || modelId.includes('llama')) {
+      return 'High-performance general-purpose AI model with excellent instruction following capabilities'
     }
-    return Object.entries(descriptions).find(([key]) => modelId.includes(key))?.[1] || 'High-quality language model'
+    return 'AI language model' // Generic for unknown models
   }
 
   const calculateSizeMB = (chunks: any[]) => {
@@ -169,19 +164,15 @@ const ModelCatalog = () => {
   }
 
   const getModelParameters = (modelId: string) => {
-    if (modelId.includes('8b')) return '8B'
-    if (modelId.includes('7b')) return '7B'
-    if (modelId.includes('3b') || modelId.includes('mini')) return '3.8B'
-    if (modelId.includes('2b')) return '2B'
-    return 'Unknown'
+    // Only show real parameters for actual supported models
+    if (modelId.includes('llama3.1-8b') || modelId.includes('llama') && modelId.includes('8b')) return '8B'
+    return 'Unknown' // Don't fake parameters for unknown models
   }
 
   const getModelLicense = (modelId: string) => {
+    // Only show real license info for actual supported models
     if (modelId.includes('llama')) return 'Custom'
-    if (modelId.includes('phi')) return 'MIT'
-    if (modelId.includes('mistral')) return 'Apache 2.0'
-    if (modelId.includes('gemma')) return 'Gemma Terms'
-    return 'Unknown'
+    return 'Unknown' // Don't fake licenses for unknown models
   }
 
   return (

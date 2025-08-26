@@ -197,7 +197,7 @@ const Economics = () => {
       const priorityMap: any = { low: { Low: null }, medium: { Normal: null }, high: { High: null } }
       const spec = {
         job_id: `ui-job-${Date.now()}`,
-        model_id: 'tinyllama',
+        model_id: 'llama3.1-8b', // Use real DFINITY LLM model
         estimated_tokens: estimateForm.estimated_tokens,
         estimated_compute_cycles: BigInt(1_000_000),
         priority: priorityMap[estimateForm.priority]

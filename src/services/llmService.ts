@@ -3,7 +3,7 @@ import { Principal } from '@dfinity/principal';
 // Type definitions for AI model integration
 // Currently only Llama 3.1 8B is supported
 export enum QuantizedModel {
-  Llama3_1_8B = 'Llama3_1_8B',
+  Llama3_1_8B = 'llama3.1-8b', // Match the real model ID from backend
 }
 
 // Future-ready architecture: Additional models will be added based on demand
@@ -234,10 +234,10 @@ export class LlmService {
       const { getApiClient } = await import('./apiClient');
       const apiClientInstance = getApiClient();
 
-      // Send message to LLM (will use mock actor in local development)
+      // Send message to LLM via ohms-agent canister (uses real DFINITY LLM)
       const llmResponse = await apiClientInstance.sendLlmMessage(message, this.state.currentConversation.model);
-      
-      // Only use real API response - no simulations or fallbacks
+
+      // Use real API response from ohms-agent canister - no mocks or simulations
       if (!llmResponse.success) {
         throw new Error(`LLM API call failed: ${llmResponse.error?.message || 'Unknown error'}`);
       }

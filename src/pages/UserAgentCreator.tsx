@@ -91,13 +91,13 @@ const UserAgentCreator = () => {
         const modelsResponse = await apiClient.getLlmModels()
         if (modelsResponse.success && modelsResponse.data) {
           const modelNames = modelsResponse.data.map((model: any) => model.name || model.model)
-          setAvailableModels(modelNames.length > 0 ? modelNames : ['llama-3.1-8b'])
+          setAvailableModels(modelNames.length > 0 ? modelNames : ['llama3.1-8b'])
         } else {
-          setAvailableModels(['llama-3.1-8b']) // Fallback to real model
+          setAvailableModels(['llama3.1-8b']) // Fallback to real model
         }
       } catch (error) {
         // Removed console log
-        setAvailableModels(['llama-3.1-8b']) // Fallback to real model
+        setAvailableModels(['llama3.1-8b']) // Fallback to real model
       }
 
     } catch (e: any) {
