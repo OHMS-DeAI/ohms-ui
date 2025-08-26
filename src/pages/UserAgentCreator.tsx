@@ -84,8 +84,21 @@ const UserAgentCreator = () => {
 
       setSubscription(sub as UserSubscription)
       setCreatedAgents(agents as AgentCreationResult[])
-      // For now, we'll use a placeholder for available models
-      setAvailableModels(['llama-3.1-8b', 'llama-3.1-70b', 'mistral-7b'])
+
+      // Load real available models from canister
+      try {
+        const { apiClient } = await import('../services/apiClient')
+        const modelsResponse = await apiClient.getLlmModels()
+        if (modelsResponse.success && modelsResponse.data) {
+          const modelNames = modelsResponse.data.map((model: any) => model.name || model.model)
+          setAvailableModels(modelNames.length > 0 ? modelNames : ['llama-3.1-8b'])
+        } else {
+          setAvailableModels(['llama-3.1-8b']) // Fallback to real model
+        }
+      } catch (error) {
+        console.warn('Failed to load models, using default:', error)
+        setAvailableModels(['llama-3.1-8b']) // Fallback to real model
+      }
 
     } catch (e: any) {
       console.error(e)

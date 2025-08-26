@@ -1,13 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAgent } from '../context/AgentContext'
 import { econCanister, agent } from '../services/canisterService'
-import {
-  Subscription,
-  TierConfig,
-  PaymentStatus,
-  QuotaValidation,
-  UsageMetrics
-} from '../declarations/ohms_econ'
 
 import Card from '../components/Card'
 import Badge from '../components/Badge'
@@ -71,8 +64,8 @@ const Economics = () => {
   const [subscribeErr, setSubscribeErr] = useState<string | null>(null)
 
   // Real subscription state
-  const [currentSubscription, setCurrentSubscription] = useState<Subscription | null>(null)
-  const [availableTiers, setAvailableTiers] = useState<[string, TierConfig][]>([])
+  const [currentSubscription, setCurrentSubscription] = useState(null)
+  const [availableTiers, setAvailableTiers] = useState([])
   const [basicTimeRemaining, setBasicTimeRemaining] = useState<{
     days: number
     hours: number
@@ -159,7 +152,7 @@ const Economics = () => {
         } else {
           // No subscription found, create free Basic subscription automatically
           console.log('📝 No subscription found, creating free Basic subscription...')
-          const newSubscription = await econCanister.get_or_create_free_basic_subscription()
+          const newSubscription = await econCanister.get_or_create_free_subscription()
           setCurrentSubscription(newSubscription)
 
           console.log('✅ Free Basic subscription created:', {

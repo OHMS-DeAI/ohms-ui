@@ -290,9 +290,9 @@ export class ProfileService {
     const canisterIds = getCanisterIdsFromEnv()
     
     // Check if ohms_profiles is in the environment
-    const profilesCanisterId = process.env.VITE_PROFILES_CANISTER_ID || 
+    const profilesCanisterId = process.env.VITE_PROFILES_CANISTER_ID ||
                                (window as any).__VITE_PROFILES_CANISTER_ID__ ||
-                               'br5f7-7uaaa-aaaaa-qaaca-cai' // Default local canister ID
+                               canisterIds.ohms_model // Use existing model canister as fallback
     
     console.log('🔍 Profile canister ID from environment:', profilesCanisterId)
     return profilesCanisterId

@@ -21,6 +21,10 @@ import NOVAQDashboard from './pages/NOVAQDashboard'
 import GoogleCallback from './pages/GoogleCallback'
 import ModelChat from './pages/ModelChat'
 import Coordinator from './pages/Coordinator'
+import Landing from './pages/Landing'
+import About from './pages/About'
+import Pricing from './pages/Pricing'
+import Features from './pages/Features'
 import { AgentProvider } from './context/AgentContext'
 
 // Development-only imports
@@ -43,6 +47,11 @@ function App() {
                 <Routes>
                   {/* Home page - always accessible */}
                   <Route path="/" element={<Home />} />
+                  {/* Landing page - professional marketing site */}
+                  <Route path="/landing" element={<Landing />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/pricing" element={<Pricing />} />
+                  <Route path="/features" element={<Features />} />
                   
                   {/* User Routes - require authentication */}
                   <Route path="/starter-packs" element={

@@ -179,17 +179,24 @@ export class LlmService {
         throw new Error('Agent canister not initialized');
       }
 
-      // Call canister method to create conversation
-      // const sessionId = await this.agentCanister.createConversation(model);
+      // Use real API client for canister calls
+      const { apiClient } = await import('./apiClient');
 
-      // For now, create a mock session
+      // Create conversation via real canister call
+      const response = await apiClient.sendLlmMessage('', model);
+
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to create conversation');
+      }
+
+      // Create session with real data
       const sessionId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const session: ConversationSession = {
         session_id: sessionId,
-        user_principal: Principal.anonymous(), // Would be actual user principal
+        user_principal: Principal.anonymous(), // Will be replaced with real principal
         model,
         messages: [],
-        created_at: BigInt(Date.now()) * BigInt(1000000), // Convert to nanoseconds
+        created_at: BigInt(Date.now()) * BigInt(1000000),
         last_activity: BigInt(Date.now()) * BigInt(1000000),
         token_usage: {
           input_tokens: BigInt(0),

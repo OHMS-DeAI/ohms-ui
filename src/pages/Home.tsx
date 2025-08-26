@@ -2,13 +2,52 @@ import { useAgent } from '../context/AgentContext'
 import { useNavigate } from 'react-router-dom'
 import Button from '../components/Button'
 import Card from '../components/Card'
+import SEOHead from '../components/SEOHead'
 
 const Home = () => {
   const { isConnected, isConnecting, userProfile, connect } = useAgent()
   const navigate = useNavigate()
 
+  // Structured data for OHMS organization
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "OHMS",
+    "url": "https://ohms.ai",
+    "logo": "https://ohms.ai/ohms-logo.png",
+    "description": "On-Chain Hosting for Multi-Agent Systems - Revolutionizing AI deployment with adaptive models, smart agents, and decentralized coordination on the Internet Computer Protocol",
+    "foundingDate": "2024",
+    "sameAs": [
+      "https://github.com/your-org/ohms-2.0",
+      "https://twitter.com/ohms_ai"
+    ],
+    "offers": [
+      {
+        "@type": "Product",
+        "name": "OHMS AI Platform",
+        "description": "Autonomous AI agent platform with NOVAQ compression and advanced AI integration",
+        "category": "AI Platform"
+      }
+    ],
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "email": "contact@ohms.ai",
+      "contactType": "customer service"
+    }
+  }
+
   return (
-    <div className="min-h-screen">
+    <>
+      <SEOHead
+        title="Home"
+        description="OHMS - On-Chain Hosting for Multi-Agent Systems. Revolutionary AI platform with adaptive models, smart agents, and decentralized coordination powered by advanced AI and Internet Computer Protocol."
+        keywords={['OHMS', 'AI agents', 'decentralized AI', 'blockchain AI', 'autonomous agents', 'NOVAQ compression', 'smart agents']}
+        canonical="/"
+        ogImage="/ohms-logo.png"
+        ogType="website"
+        structuredData={structuredData}
+      />
+      <div className="min-h-screen">
       {/* Hero Section */}
       <div className="text-center py-20 relative">
         <div className="relative z-10">
@@ -188,6 +227,7 @@ const Home = () => {
         </div>
       )}
     </div>
+    </>
   )
 }
 
